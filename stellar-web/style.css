@@ -76,3 +76,24 @@ canvas{display:block;width:100%;height:100%}
 	.open-controls{left:10px;top:14px}
 	.settings-hint{left:50%;top:12px}
 }
+
+/* Network statistics panel */
+.network-stats{
+	position:fixed;
+	right:14px;
+	top:86px;
+	width:220px;
+	background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+	color:#e9f6ff;
+	padding:10px 12px;
+	border-radius:12px;
+	backdrop-filter: blur(8px) saturate(120%);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+	font-size:13px;
+	box-shadow: 0 6px 18px rgba(3,8,20,0.6);
+	z-index:1250;
+}
+.network-stats-header{font-weight:600;font-size:13px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:8px}
+.network-stats .stat{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.02)}
+.network-stats .stat strong{font-weight:600}
+.network-stats[hidden]{display:none}

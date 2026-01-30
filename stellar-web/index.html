@@ -53,10 +53,21 @@
       <label><input id="trailToggle" type="checkbox" checked /> Motion trail</label>
     </div>
 
+    <div class="control-row">
+      <label><input id="networkStatsToggle" type="checkbox" /> Show Network Statistics panel</label>
+    </div>
+
   </aside>
 
   <button id="openControlsButton" class="open-controls" aria-label="Toggle controls">⚙</button>
   <div id="settingsHint" class="settings-hint">Settings in the top left</div>
+  <div id="networkStatsPanel" class="network-stats" aria-live="polite" hidden>
+    <div class="network-stats-header">Network Statistics</div>
+    <div class="stat"><span>Nodes</span><strong id="nodesValue">0</strong></div>
+    <div class="stat"><span>Edges</span><strong id="edgesValue">0</strong></div>
+    <div class="stat"><span>Avg connections</span><strong id="avgConnValue">0</strong></div>
+    <div class="stat"><span>Density</span><strong id="densityValue">0</strong></div>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>

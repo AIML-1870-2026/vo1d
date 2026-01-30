@@ -18,6 +18,13 @@ const trailToggle = document.getElementById('trailToggle');
 const backgroundPicker = document.getElementById('backgroundPicker');
 const openControlsButton = document.getElementById('openControlsButton');
 const settingsHint = document.getElementById('settingsHint');
+// Network stats elements (added in index.html)
+const networkStatsToggle = document.getElementById('networkStatsToggle');
+const networkStatsPanel = document.getElementById('networkStatsPanel');
+const edgesValue = document.getElementById('edgesValue');
+const avgConnValue = document.getElementById('avgConnValue');
+const densityValue = document.getElementById('densityValue');
+const nodesValue = document.getElementById('nodesValue');
 
 let lineWidth = Number(thicknessRange?.value || 1);
 if (thicknessValue) thicknessValue.textContent = String(lineWidth.toFixed(1));
@@ -165,6 +172,9 @@ function animate() {
   // draw connecting lines using absolute connectRadius and thickness
   const effectiveRadius = connectRadius;
   const r2 = effectiveRadius * effectiveRadius;
+  // compute edges as we draw connections so we can show live stats
+  let edgeCount = 0;
+  const nodeCount = particles.length;
   for (let i = 0; i < particles.length; i++) {
     const pa = particles[i];
     for (let j = i + 1; j < particles.length; j++) {
@@ -173,6 +183,7 @@ function animate() {
       const dy = pa.y - pb.y;
       const d2 = dx * dx + dy * dy;
       if (d2 <= r2) {
+        edgeCount++;
         const d = Math.sqrt(d2);
         const alpha = Math.max(0, 0.12 * (1 - d / effectiveRadius));
         ctx.beginPath();
@@ -188,6 +199,18 @@ function animate() {
         ctx.stroke();
       }
     }
+  }
+
+  // Update live network stats (nodes, edges, average connections, density)
+  if (edgesValue || avgConnValue || densityValue || nodesValue) {
+    const totalEdges = edgeCount; // undirected edges counted once
+    const N = nodeCount;
+    const avgConnections = N > 0 ? (totalEdges * 2) / N : 0;
+    const density = N > 1 ? (2 * totalEdges) / (N * (N - 1)) : 0;
+    if (nodesValue) nodesValue.textContent = String(N);
+    if (edgesValue) edgesValue.textContent = String(totalEdges);
+    if (avgConnValue) avgConnValue.textContent = avgConnections.toFixed(2);
+    if (densityValue) densityValue.textContent = density.toFixed(4);
   }
 
   for (let p of particles) {
@@ -300,5 +323,13 @@ if (rainbowToggle) {
 if (trailToggle) {
   trailToggle.addEventListener('change', (e) => {
     trailEnabled = Boolean(e.target.checked);
+  });
+}
+
+// Toggle network stats panel visibility from settings
+if (networkStatsToggle) {
+  networkStatsToggle.addEventListener('change', (e) => {
+    const show = Boolean(e.target.checked);
+    if (networkStatsPanel) networkStatsPanel.hidden = !show;
   });
 }
