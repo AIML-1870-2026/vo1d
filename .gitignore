@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+UserSettings/
+Library/
+Logs/
+
+# IDEs
+.vscode/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log
