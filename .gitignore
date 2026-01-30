@@ -3,6 +3,77 @@
 
 # Node
 node_modules/
+npm-debug.log*
+.env
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+
+# Visual Studio
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.pidb
+*.booproj
+*.svd
+
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Aa]ssets/AssetStoreTools*
+
+# Unity generated files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity cache
+Library/
+Temp/
+Obj/
+Build/
+
+# macOS files
+Icon?
+._*
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Misc
+Thumbs.db
+# macOS
+.DS_Store
+
+# Node
+node_modules/
 npm-debug.log
 yarn-error.log
 
