@@ -78,6 +78,9 @@ const POWERUP_TYPES = [
 let powerupsOnMap = []; // {x, y, type} - spawned items on the map
 let inventory = [null, null, null, null]; // slots 0-3 for powerup types 1-4
 let activeEffects = { shield: 0, timeFreeze: 0 }; // timestamps when effects expire
+
+// Obstacles (spikes/rocks on non-boss levels)
+let obstacles = []; // {x, y, type} - type: 'spike' or 'rock'
 let frozenTimeAccumulated = 0; // total ms the timer was frozen
 let lastFreezeCheck = 0; // for tracking freeze duration
 let bossLastMove = 0;
@@ -199,6 +202,7 @@ function isOccupied(p){
   }
   if(fruits.some(f=>f.x===p.x && f.y===p.y)) return true;
   if(powerupsOnMap.some(pw=>pw.x===p.x && pw.y===p.y)) return true;
+  if(obstacles.some(o=>o.x===p.x && o.y===p.y)) return true;
   return false;
 }
 
@@ -210,6 +214,23 @@ function spawnPowerup(){
       const type = randInt(1, 4);
       powerupsOnMap.push({x: p.x, y: p.y, type: type});
       return;
+    }
+  }
+}
+
+function spawnObstacles(count){
+  obstacles = [];
+  const types = ['spike', 'rock'];
+  for(let i=0; i<count; i++){
+    for(let attempts=0; attempts<200; attempts++){
+      // Keep obstacles away from center spawn area
+      const p = {x:randInt(2,GRID_W-3), y:randInt(2,GRID_H-3)};
+      const cx = Math.floor(GRID_W/2), cy = Math.floor(GRID_H/2);
+      const distFromCenter = Math.abs(p.x - cx) + Math.abs(p.y - cy);
+      if(distFromCenter > 5 && !isOccupied(p)){
+        obstacles.push({x: p.x, y: p.y, type: types[randInt(0,1)]});
+        break;
+      }
     }
   }
 }
@@ -232,6 +253,14 @@ function startLevel(){
   running = true; paused = false; gameOver = false;
   // boss spawn marker (every 5 levels)
   if(level % 5 === 0){ boss = {x:2,y:2,w:6,h:6,active:false,spawnAt:levelStart+2000}; }
+
+  // Obstacles on non-boss levels (scales with level)
+  if(level % 5 !== 0){
+    const obstacleCount = Math.min(15, 2 + Math.floor(level / 2)); // 2-15 obstacles
+    spawnObstacles(obstacleCount);
+  } else {
+    obstacles = []; // no obstacles on boss levels
+  }
 
   // Powerups: clear map powerups, spawn 1 new one
   // Inventory persists between levels
@@ -424,6 +453,8 @@ function update(now){
     if(head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H){ gameOverNow(); return; }
     // self collision
     if(snake.some(seg=>seg.x===head.x && seg.y===head.y)){ gameOverNow(); return; }
+    // obstacle collision
+    if(obstacles.some(o=>o.x===head.x && o.y===head.y)){ gameOverNow(); return; }
     snake.unshift(head);
     // fruit collision
     let ate = false;
@@ -656,6 +687,52 @@ function draw(){
     // Stem
     ctx.fillStyle = '#4a3a2a';
     ctx.fillRect(fx - 2, fy - tileSize*0.45, 4, tileSize*0.15);
+  }
+
+  // Obstacles (spikes and rocks)
+  for(let o of obstacles){
+    const ox = o.x * tileSize;
+    const oy = o.y * tileSize;
+    const ocx = ox + tileSize/2;
+    const ocy = oy + tileSize/2;
+
+    if(o.type === 'spike'){
+      // Metal spike trap
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.moveTo(ocx, oy + tileSize*0.1);
+      ctx.lineTo(ox + tileSize*0.2, oy + tileSize*0.9);
+      ctx.lineTo(ox + tileSize*0.8, oy + tileSize*0.9);
+      ctx.closePath();
+      ctx.fill();
+      // Spike highlight
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.moveTo(ocx, oy + tileSize*0.15);
+      ctx.lineTo(ocx - tileSize*0.1, oy + tileSize*0.5);
+      ctx.lineTo(ocx, oy + tileSize*0.4);
+      ctx.closePath();
+      ctx.fill();
+      // Base
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(ox + tileSize*0.15, oy + tileSize*0.8, tileSize*0.7, tileSize*0.15);
+    } else {
+      // Rock/boulder
+      ctx.fillStyle = '#4a4a4a';
+      ctx.beginPath();
+      ctx.ellipse(ocx, ocy + tileSize*0.05, tileSize*0.4, tileSize*0.35, 0, 0, Math.PI*2);
+      ctx.fill();
+      // Rock highlight
+      ctx.fillStyle = '#5a5a5a';
+      ctx.beginPath();
+      ctx.ellipse(ocx - tileSize*0.1, ocy - tileSize*0.05, tileSize*0.2, tileSize*0.15, -0.3, 0, Math.PI*2);
+      ctx.fill();
+      // Rock shadow
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.ellipse(ocx + tileSize*0.1, ocy + tileSize*0.15, tileSize*0.25, tileSize*0.1, 0.2, 0, Math.PI);
+      ctx.fill();
+    }
   }
 
   // powerups on map
