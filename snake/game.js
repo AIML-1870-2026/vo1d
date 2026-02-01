@@ -344,25 +344,20 @@ function nextLevel(){
 // Input
 window.addEventListener('keydown', (e)=>{
   if(e.key===' '){
-    // Prefer explicit gameOver handling first (so restart works reliably).
-    if(gameOver){
-      // restart from game over: reset level and score and start
+    // Start/restart game when on title screen (covers both initial start and after game over)
+    if(!running || gameOver){
+      // Reset all game state
       try { gameOverScreen.classList.add('hidden'); } catch(e){}
       titleScreen.classList.add('hidden');
-      level = 1; score = 0;
-      inventory = [null, null, null, null]; // reset inventory on restart
-      inTransition = true;
-      showLevelAnn('LEVEL ' + level, 700);
-      setTimeout(()=>{ inTransition = false; startLevel(); }, 700 + 300);
-    } else if(!running){
-      // starting from title screen (initial run or returned to menu) -> always start at level 1
-      try { gameOverScreen.classList.add('hidden'); } catch(e){}
-      titleScreen.classList.add('hidden');
-      // reset to level 1 like the skip control expects
-      level = 1; score = 0;
-      inventory = [null, null, null, null]; // reset inventory on new game
+      level = 1;
+      score = 0;
+      gameOver = false;
+      running = false; // will be set true by startLevel
+      inventory = [null, null, null, null];
+      obstacles = [];
       // clear last-score display
-      const lastScoreEl = document.getElementById('last-score'); if(lastScoreEl) lastScoreEl.textContent = '';
+      const lastScoreEl = document.getElementById('last-score');
+      if(lastScoreEl) lastScoreEl.textContent = '';
       inTransition = true;
       showLevelAnn('LEVEL ' + level, 700);
       setTimeout(()=>{ inTransition = false; startLevel(); }, 700 + 300);
@@ -453,8 +448,9 @@ function update(now){
     if(head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H){ gameOverNow(); return; }
     // self collision
     if(snake.some(seg=>seg.x===head.x && seg.y===head.y)){ gameOverNow(); return; }
-    // obstacle collision
-    if(obstacles.some(o=>o.x===head.x && o.y===head.y)){ gameOverNow(); return; }
+    // obstacle collision (shield allows passing through)
+    const shieldActiveForObstacle = performance.now() < activeEffects.shield;
+    if(!shieldActiveForObstacle && obstacles.some(o=>o.x===head.x && o.y===head.y)){ gameOverNow(); return; }
     snake.unshift(head);
     // fruit collision
     let ate = false;
