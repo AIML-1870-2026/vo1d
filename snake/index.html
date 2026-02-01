@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DUNGEON SNAKE</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="ui">
+    <div id="title-screen" class="overlay">
+      <div class="menu-box">
+        <h1>DUNGEON SNAKE</h1>
+        <div class="menu-divider"></div>
+        <div id="hs" class="score-display">HIGH SCORE: 0</div>
+        <div id="last-score" class="score-display small"></div>
+        <div id="coin-display" class="coin-display">🪙 0</div>
+        <div class="menu-divider"></div>
+        <p class="start-prompt">Press SPACE to Start</p>
+
+        <div class="upgrade-shop">
+          <p class="shop-title">UPGRADES</p>
+          <div class="upgrade-grid">
+            <button id="upgrade-extraTime" class="upgrade-btn" title="+10s per level">Extra Time</button>
+            <button id="upgrade-slowBoss" class="upgrade-btn" title="Boss 15% slower">Slow Boss</button>
+            <button id="upgrade-scoreBonus" class="upgrade-btn" title="+25% score">Score Boost</button>
+            <button id="upgrade-startShield" class="upgrade-btn" title="Start with Shield">Start Shield</button>
+          </div>
+        </div>
+
+        <div class="controls-box">
+          <p class="controls-title">CONTROLS</p>
+          <p class="control-item">Arrow Keys / WASD - Move</p>
+          <p class="control-item">1 - Shield (5s boss immunity)</p>
+          <p class="control-item">2 - Time Freeze (5s)</p>
+          <p class="control-item">3 - Extra Life (auto)</p>
+          <p class="control-item">4 - Level Skip</p>
+          <p class="control-item">ESC / P - Pause</p>
+        </div>
+      </div>
+    </div>
+    <div id="pause-screen" class="overlay hidden">
+      <div class="pause-box">
+        <h2>PAUSED</h2>
+        <div class="pause-controls">
+          <label for="skip-level-input">Skip to level:</label>
+          <input id="skip-level-input" type="number" min="1" value="1">
+          <button id="skip-level-btn">Skip</button>
+        </div>
+        <p class="small">Press ESC or P to resume</p>
+      </div>
+    </div>
+    <div id="game-over" class="overlay hidden">
+      <h2>GAME OVER</h2>
+      <div id="final-score">SCORE: 0</div>
+      <p>Press SPACE to Restart</p>
+    </div>
+    <div id="level-announcement" class="overlay hidden"></div>
+  </div>
+
+  <canvas id="game"></canvas>
+
+  <script src="game.js"></script>
+</body>
+</html>
