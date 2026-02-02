@@ -8,6 +8,11 @@ const levelAnn = document.getElementById('level-announcement');
 const hsDisplay = document.getElementById('hs');
 const finalScore = document.getElementById('final-score');
 
+// Reset all persistent data on page load (fresh start each session)
+localStorage.removeItem('dungeon-snake-coins');
+localStorage.removeItem('dungeon-snake-upgrades');
+localStorage.removeItem('dungeon-snake-highscore');
+
 // Grid config (spec suggests 40x30)
 const GRID_W = 40, GRID_H = 30;
 let tileSize = 20;
@@ -26,13 +31,13 @@ let fruits = [];
 let fruitsNeeded = 3;
 let fruitsCollected = 0;
 let score = 0;
-let highScore = parseInt(localStorage.getItem('dungeon-snake-highscore')||'0',10);
+let highScore = 0;
 hsDisplay.textContent = 'HIGH SCORE: ' + highScore;
 // transition guard to avoid multiple rapid level advances
 let inTransition = false;
 
 // Permanent Upgrade System
-let coins = parseInt(localStorage.getItem('dungeon-snake-coins')||'0',10);
+let coins = 0;
 const UPGRADES = {
   extraTime: { name: 'Extra Time', desc: '+10s per level', cost: 500, max: 3, effect: 10 },
   slowBoss: { name: 'Slow Boss', desc: 'Boss 15% slower', cost: 750, max: 3, effect: 0.15 },
@@ -292,9 +297,10 @@ function showLevelAnn(text, ms, isHighScore = false){
 
 function gameOverNow(bypassExtraLife = false){
   // Check for Extra Life first (unless bypassed, e.g., for timer expiration the spec allows it)
+  // Returns true if game actually ended, false if survived with extra life
   if(!bypassExtraLife && useExtraLife()){
     showLevelAnn('EXTRA LIFE!', 1000);
-    return; // survived!
+    return false; // survived! Game continues
   }
 
   running = false; gameOver = true; pauseScreen.classList.add('hidden');
@@ -316,6 +322,7 @@ function gameOverNow(bypassExtraLife = false){
   inventory = [null, null, null, null];
 
   if(score>highScore){ highScore = score; localStorage.setItem('dungeon-snake-highscore', highScore); hsDisplay.textContent = 'HIGH SCORE: ' + highScore; showLevelAnn('🏆 NEW HIGH SCORE! 🏆', 2000, true); }
+  return true; // Game actually ended
 }
 
 function nextLevel(){
@@ -445,12 +452,12 @@ function update(now){
     // move snake
     const head = {x:snake[0].x + dir.x, y:snake[0].y + dir.y};
     // wall collision
-    if(head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H){ gameOverNow(); return; }
+    if(head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H){ if(gameOverNow()) return; }
     // self collision
-    if(snake.some(seg=>seg.x===head.x && seg.y===head.y)){ gameOverNow(); return; }
+    if(snake.some(seg=>seg.x===head.x && seg.y===head.y)){ if(gameOverNow()) return; }
     // obstacle collision (shield allows passing through)
     const shieldActiveForObstacle = performance.now() < activeEffects.shield;
-    if(!shieldActiveForObstacle && obstacles.some(o=>o.x===head.x && o.y===head.y)){ gameOverNow(); return; }
+    if(!shieldActiveForObstacle && obstacles.some(o=>o.x===head.x && o.y===head.y)){ if(gameOverNow()) return; }
     snake.unshift(head);
     // fruit collision
     let ate = false;
@@ -484,7 +491,8 @@ function update(now){
     // boss collision (shield protects from boss)
     if(boss && boss.active){
       const shieldActive = performance.now() < activeEffects.shield;
-      if(!shieldActive && head.x>=boss.x && head.x < boss.x+boss.w && head.y>=boss.y && head.y<boss.y+boss.h){ gameOverNow(); return; }
+      const bossLeft = Math.floor(boss.x), bossTop = Math.floor(boss.y);
+      if(!shieldActive && head.x >= bossLeft && head.x < bossLeft + boss.w && head.y >= bossTop && head.y < bossTop + boss.h){ if(gameOverNow()) return; }
     }
   }
 
@@ -542,7 +550,7 @@ function update(now){
     const shieldActiveNow = performance.now() < activeEffects.shield;
     if(!shieldActiveNow){
       for(let seg of snake){
-        if(seg.x >= Math.floor(boss.x) && seg.x < Math.floor(boss.x)+boss.w && seg.y >= Math.floor(boss.y) && seg.y < Math.floor(boss.y)+boss.h){ gameOverNow(); return; }
+        if(seg.x >= Math.floor(boss.x) && seg.x < Math.floor(boss.x)+boss.w && seg.y >= Math.floor(boss.y) && seg.y < Math.floor(boss.y)+boss.h){ if(gameOverNow()) return; break; }
       }
     }
   }
@@ -562,7 +570,7 @@ function update(now){
 
   // timer check (accounting for frozen time and upgrades)
   const elapsedLevel = (now - levelStart - frozenTimeAccumulated)/1000;
-  if(elapsedLevel >= getLevelTime()){ gameOverNow(); return; }
+  if(elapsedLevel >= getLevelTime()){ if(gameOverNow()) return; }
 
   draw();
   requestAnimationFrame(update);
