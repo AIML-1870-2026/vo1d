@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Boids Flocking Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; }
+  canvas { display: block; }
+
+  #controls {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 260px;
+    background: rgba(10, 14, 28, 0.88);
+    border: 1px solid rgba(100, 140, 255, 0.2);
+    border-radius: 12px;
+    padding: 0;
+    color: #c8d6f0;
+    font-size: 13px;
+    backdrop-filter: blur(12px);
+    z-index: 100;
+    user-select: none;
+    transition: height 0.3s ease;
+  }
+
+  #controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(100, 140, 255, 0.15);
+  }
+
+  #controls-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #e0e8ff;
+  }
+
+  #toggle-btn {
+    background: none;
+    border: none;
+    color: #8899cc;
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.3s;
+    line-height: 1;
+  }
+
+  #controls-body {
+    padding: 12px 16px 16px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 800px;
+    opacity: 1;
+  }
+
+  #controls-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 16px;
+  }
+
+  .slider-group {
+    margin-bottom: 10px;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    font-size: 12px;
+  }
+
+  .slider-label span:first-child { color: #a0b0d0; }
+  .slider-label span:last-child { color: #6fcfff; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(100, 150, 255, 0.2);
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4a8aff;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(74, 138, 255, 0.5);
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .actions button {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid rgba(100, 140, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(40, 60, 120, 0.3);
+    color: #c0d0ff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .actions button:hover {
+    background: rgba(60, 90, 180, 0.4);
+    border-color: rgba(100, 140, 255, 0.6);
+  }
+
+  /* ── Presets ── */
+  .preset-section {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(100, 140, 255, 0.1);
+  }
+
+  .preset-label {
+    font-size: 12px;
+    color: #a0b0d0;
+    margin-bottom: 6px;
+  }
+
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  .preset-btn {
+    padding: 6px 4px;
+    border: 1px solid rgba(100, 140, 255, 0.2);
+    border-radius: 5px;
+    background: rgba(30, 45, 90, 0.3);
+    color: #b0c0e0;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .preset-btn:hover {
+    background: rgba(60, 90, 180, 0.45);
+    border-color: rgba(100, 140, 255, 0.5);
+    color: #e0e8ff;
+  }
+
+  .preset-btn.active {
+    background: rgba(74, 138, 255, 0.3);
+    border-color: rgba(74, 138, 255, 0.7);
+    color: #ffffff;
+  }
+
+  /* ── Toggle switch ── */
+  .switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(100, 140, 255, 0.1);
+  }
+
+  .switch-row span { font-size: 12px; color: #a0b0d0; }
+  .switch-row .mode-label { color: #6fcfff; font-weight: 600; font-size: 12px; min-width: 22px; text-align: right; }
+
+  .switch {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    margin: 0 8px;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .switch .slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(60, 80, 140, 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .switch .slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    background: #8899cc;
+    border-radius: 50%;
+    transition: transform 0.3s, background 0.3s;
+  }
+
+  .switch input:checked + .slider { background: rgba(74, 138, 255, 0.5); }
+  .switch input:checked + .slider::before { transform: translateX(20px); background: #4a8aff; }
+
+  #stats {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    color: rgba(150, 180, 230, 0.6);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  #mouse-hint {
+    position: fixed;
+    bottom: 36px;
+    left: 16px;
+    color: rgba(150, 180, 230, 0.4);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    z-index: 100;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <div id="controls-header">
+    <h2>BOIDS CONTROLS</h2>
+    <button id="toggle-btn">&#9660;</button>
+  </div>
+  <div id="controls-body">
+    <div class="switch-row">
+      <span>2D</span>
+      <label class="switch">
+        <input type="checkbox" id="mode-switch" checked>
+        <span class="slider"></span>
+      </label>
+      <span class="mode-label" id="mode-label">3D</span>
+    </div>
+    <div class="preset-section">
+      <div class="preset-label">Presets</div>
+      <div class="preset-grid">
+        <button class="preset-btn active" data-preset="default">Default</button>
+        <button class="preset-btn" data-preset="murmuration">Murmuration</button>
+        <button class="preset-btn" data-preset="highway">Highway</button>
+        <button class="preset-btn" data-preset="mitosis">Mitosis</button>
+        <button class="preset-btn" data-preset="asteroid">Asteroid Belt</button>
+        <button class="preset-btn" data-preset="cosmic">Cosmic Dust</button>
+      </div>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label"><span>Separation</span><span id="val-separation">0.5</span></div>
+      <input type="range" id="separation" min="0" max="5" step="0.1" value="0.5">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Alignment</span><span id="val-alignment">1.2</span></div>
+      <input type="range" id="alignment" min="0" max="5" step="0.1" value="1.2">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Cohesion</span><span id="val-cohesion">2.0</span></div>
+      <input type="range" id="cohesion" min="0" max="5" step="0.1" value="2.0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Neighbor Radius</span><span id="val-radius">30</span></div>
+      <input type="range" id="radius" min="10" max="200" step="1" value="30">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Speed</span><span id="val-speed">2.0</span></div>
+      <input type="range" id="speed" min="0.5" max="10" step="0.1" value="2.0">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Boid Count</span><span id="val-count">150</span></div>
+      <input type="range" id="count" min="50" max="1000" step="10" value="150">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Obstacles</span><span id="val-obstacles">5</span></div>
+      <input type="range" id="obstacles" min="0" max="20" step="1" value="5">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Field of View</span><span id="val-fov">360°</span></div>
+      <input type="range" id="fov" min="30" max="360" step="10" value="360">
+    </div>
+    <div class="actions">
+      <button id="btn-pause">Pause</button>
+      <button id="btn-reset">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div id="mouse-hint">Left-click: attract  |  Right-click: repel</div>
+<div id="stats"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── Defaults ──
+const DEFAULTS = {
+  separation: 0.5,
+  alignment: 1.2,
+  cohesion: 2.0,
+  radius: 30,
+  speed: 2.0,
+  count: 150,
+  obstacleCount: 5,
+  fov: 360
+};
+
+const PRESETS = {
+  default: { ...DEFAULTS },
+  murmuration: {
+    separation: 1.0, alignment: 3.5, cohesion: 3.8,
+    radius: 120, speed: 3.5, count: 400, obstacleCount: 0, fov: 270
+  },
+  highway: {
+    separation: 2.0, alignment: 5.0, cohesion: 0.3,
+    radius: 100, speed: 5.0, count: 200, obstacleCount: 0, fov: 180
+  },
+  mitosis: {
+    separation: 4.0, alignment: 1.5, cohesion: 3.5,
+    radius: 60, speed: 1.5, count: 200, obstacleCount: 0, fov: 360
+  },
+  asteroid: {
+    separation: 0.8, alignment: 0.0, cohesion: 0.4,
+    radius: 50, speed: 0.8, count: 250, obstacleCount: 15, fov: 360
+  },
+  cosmic: {
+    separation: 0.3, alignment: 0.8, cohesion: 1.0,
+    radius: 200, speed: 0.7, count: 500, obstacleCount: 3, fov: 360
+  }
+};
+
+const BOUND = 200;
+const TRAIL_LENGTH = 6;
+const OBSTACLE_RADIUS = 18;
+const OBSTACLE_AVOID_DIST = 70;
+const BOID_MIN_DIST = 10;       // hard minimum distance between boids
+const BOID_COMFORT_DIST = 18;   // soft repulsion zone
+const GROUP_MAX_RATIO = 0.40;   // groups > 40% of population will split
+
+// ── State ──
+let paused = false;
+let mode3D = true;
+let params = { ...DEFAULTS };
+let boids = [];
+let obstacles = [];
+let obstacleMeshes = [];
+
+// ── Spatial partitioning grid ──
+class SpatialGrid {
+  constructor(cellSize, bound) {
+    this.cellSize = cellSize;
+    this.bound = bound;
+    this.cells = new Map();
+  }
+  clear() { this.cells.clear(); }
+  _key(cx, cy, cz) { return (cx * 73856093) ^ (cy * 19349663) ^ (cz * 83492791); }
+  _cell(v) { return Math.floor((v + this.bound + 1) / this.cellSize); }
+  insert(index, pos) {
+    const k = this._key(this._cell(pos.x), this._cell(pos.y), this._cell(pos.z));
+    let arr = this.cells.get(k);
+    if (!arr) { arr = []; this.cells.set(k, arr); }
+    arr.push(index);
+  }
+  query(pos, radius) {
+    const r = Math.ceil(radius / this.cellSize);
+    const cx = this._cell(pos.x), cy = this._cell(pos.y), cz = this._cell(pos.z);
+    const result = [];
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const arr = this.cells.get(this._key(cx + dx, cy + dy, cz + dz));
+          if (arr) for (let i = 0; i < arr.length; i++) result.push(arr[i]);
+        }
+      }
+    }
+    return result;
+  }
+}
+let grid = new SpatialGrid(80, BOUND + 50);
+
+// ── Mouse interaction ──
+const mouseRaycaster = new THREE.Raycaster();
+const mouseNDC = new THREE.Vector2();
+const mouseWorld = new THREE.Vector3();
+let mouseInScene = false;
+let mouseBtn = 0; // 0 = none, 1 = attract (left), 2 = repel (right)
+const MOUSE_RADIUS = 120;
+const MOUSE_STRENGTH = 0.8;
+
+// ── Three.js setup ──
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060b1a);
+scene.fog = new THREE.FogExp2(0x060b1a, 0.0012);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 2000);
+camera.position.set(280, 220, 280);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.enableDamping = true;
+orbitControls.dampingFactor = 0.08;
+orbitControls.target.set(0, 0, 0);
+
+// ── Lights ──
+scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(200, 300, 150);
+scene.add(dirLight);
+
+// ── Bounding box wireframe ──
+const boxGeo = new THREE.BoxGeometry(BOUND * 2, BOUND * 2, BOUND * 2);
+const boxEdges = new THREE.EdgesGeometry(boxGeo);
+const boxLine = new THREE.LineSegments(
+  boxEdges,
+  new THREE.LineBasicMaterial({ color: 0x2244aa, transparent: true, opacity: 0.15 })
+);
+scene.add(boxLine);
+
+// ── Boid instanced mesh ──
+const boidGeo = new THREE.ConeGeometry(1.8, 7, 4);
+boidGeo.rotateX(Math.PI / 2);
+
+const boidMat = new THREE.MeshPhongMaterial({
+  color: 0xffffff,
+  emissive: 0x334455,
+  shininess: 80,
+  transparent: true,
+  opacity: 0.95
+});
+
+let instancedMesh;
+const dummy = new THREE.Object3D();
+const colorObj = new THREE.Color();
+
+// ── Trail lines ──
+let trailGeo, trailLine;
+
+// ── Obstacle geometry ──
+const obstacleGeo = new THREE.SphereGeometry(OBSTACLE_RADIUS, 16, 12);
+const obstacleMat = new THREE.MeshPhongMaterial({
+  color: 0xff4444,
+  emissive: 0x441111,
+  transparent: true,
+  opacity: 0.35,
+  shininess: 30
+});
+const obstacleWireMat = new THREE.MeshBasicMaterial({
+  color: 0xff6666,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.15
+});
+
+// ── Boid class ──
+class Boid {
+  constructor() {
+    this.pos = new THREE.Vector3(
+      (Math.random() - 0.5) * BOUND * 1.6,
+      mode3D ? (Math.random() - 0.5) * BOUND * 1.6 : 0,
+      (Math.random() - 0.5) * BOUND * 1.6
+    );
+    this.vel = new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      mode3D ? (Math.random() - 0.5) * 2 : 0,
+      (Math.random() - 0.5) * 2
+    ).normalize().multiplyScalar(params.speed);
+    this.acc = new THREE.Vector3();
+    this.trail = [];
+    for (let i = 0; i < TRAIL_LENGTH; i++) this.trail.push(this.pos.clone());
+
+    // Wanderlust: random urge to break off
+    this.wandering = false;
+    this.wanderTimer = Math.random() * 400 + 200;   // frames until next wander
+    this.wanderDuration = 0;
+    this.wanderDir = new THREE.Vector3();
+  }
+
+  updateWander() {
+    if (this.wandering) {
+      this.wanderDuration--;
+      if (this.wanderDuration <= 0) {
+        this.wandering = false;
+        this.wanderTimer = Math.random() * 500 + 300;
+      }
+    } else {
+      this.wanderTimer--;
+      if (this.wanderTimer <= 0) {
+        this.wandering = true;
+        this.wanderDuration = Math.random() * 80 + 40; // wander for 40-120 frames
+        this.wanderDir.set(
+          (Math.random() - 0.5) * 2,
+          mode3D ? (Math.random() - 0.5) * 2 : 0,
+          (Math.random() - 0.5) * 2
+        ).normalize();
+      }
+    }
+  }
+}
+
+// ── Obstacles ──
+function spawnObstacles() {
+  // Remove old meshes
+  for (const m of obstacleMeshes) scene.remove(m);
+  obstacleMeshes = [];
+  obstacles = [];
+
+  for (let i = 0; i < params.obstacleCount; i++) {
+    const pos = new THREE.Vector3(
+      (Math.random() - 0.5) * BOUND * 1.2,
+      mode3D ? (Math.random() - 0.5) * BOUND * 1.2 : 0,
+      (Math.random() - 0.5) * BOUND * 1.2
+    );
+    obstacles.push(pos);
+
+    const sphere = new THREE.Mesh(obstacleGeo, obstacleMat);
+    sphere.position.copy(pos);
+    scene.add(sphere);
+    obstacleMeshes.push(sphere);
+
+    const wire = new THREE.Mesh(obstacleGeo, obstacleWireMat);
+    wire.position.copy(pos);
+    wire.scale.setScalar(1.05);
+    scene.add(wire);
+    obstacleMeshes.push(wire);
+  }
+}
+
+// ── Init / reset boids ──
+function initBoids() {
+  boids = [];
+  for (let i = 0; i < params.count; i++) boids.push(new Boid());
+  rebuildMeshes();
+  spawnObstacles();
+}
+
+function rebuildMeshes() {
+  if (instancedMesh) scene.remove(instancedMesh);
+  if (trailLine) scene.remove(trailLine);
+
+  instancedMesh = new THREE.InstancedMesh(boidGeo, boidMat, boids.length);
+  instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene.add(instancedMesh);
+
+  const trailPositions = new Float32Array(boids.length * TRAIL_LENGTH * 3);
+  const trailColors = new Float32Array(boids.length * TRAIL_LENGTH * 3);
+  trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+  trailGeo.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
+
+  const indices = [];
+  for (let b = 0; b < boids.length; b++) {
+    const base = b * TRAIL_LENGTH;
+    for (let t = 0; t < TRAIL_LENGTH - 1; t++) {
+      indices.push(base + t, base + t + 1);
+    }
+  }
+  trailGeo.setIndex(indices);
+
+  trailLine = new THREE.LineSegments(
+    trailGeo,
+    new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.4 })
+  );
+  scene.add(trailLine);
+}
+
+// ── Steering helpers ──
+const _sep = new THREE.Vector3();
+const _ali = new THREE.Vector3();
+const _coh = new THREE.Vector3();
+const _diff = new THREE.Vector3();
+const _avoid = new THREE.Vector3();
+const _scatter = new THREE.Vector3();
+
+// ── Union-Find for group detection ──
+let ufParent = [];
+let ufRank = [];
+
+function ufInit(n) {
+  ufParent.length = n;
+  ufRank.length = n;
+  for (let i = 0; i < n; i++) { ufParent[i] = i; ufRank[i] = 0; }
+}
+
+function ufFind(x) {
+  while (ufParent[x] !== x) { ufParent[x] = ufParent[ufParent[x]]; x = ufParent[x]; }
+  return x;
+}
+
+function ufUnion(a, b) {
+  a = ufFind(a); b = ufFind(b);
+  if (a === b) return;
+  if (ufRank[a] < ufRank[b]) { const t = a; a = b; b = t; }
+  ufParent[b] = a;
+  if (ufRank[a] === ufRank[b]) ufRank[a]++;
+}
+
+let groupSizes = [];
+let groupCenters = [];
+
+function buildGrid(effectiveRadius) {
+  grid = new SpatialGrid(Math.max(effectiveRadius, 20), BOUND + 50);
+  grid.clear();
+  for (let i = 0; i < boids.length; i++) grid.insert(i, boids[i].pos);
+}
+
+function computeGroups(effectiveRadius) {
+  const n = boids.length;
+  const r2 = effectiveRadius * effectiveRadius;
+  ufInit(n);
+
+  for (let i = 0; i < n; i++) {
+    const neighbors = grid.query(boids[i].pos, effectiveRadius);
+    for (let ni = 0; ni < neighbors.length; ni++) {
+      const j = neighbors[ni];
+      if (j <= i) continue;
+      if (boids[i].pos.distanceToSquared(boids[j].pos) < r2) {
+        ufUnion(i, j);
+      }
+    }
+  }
+
+  const sizeMap = new Map();
+  const centerMap = new Map();
+  for (let i = 0; i < n; i++) {
+    const root = ufFind(i);
+    sizeMap.set(root, (sizeMap.get(root) || 0) + 1);
+    if (!centerMap.has(root)) centerMap.set(root, new THREE.Vector3());
+    centerMap.get(root).add(boids[i].pos);
+  }
+  for (const [root, center] of centerMap) {
+    center.divideScalar(sizeMap.get(root));
+  }
+
+  groupSizes.length = n;
+  groupCenters.length = n;
+  for (let i = 0; i < n; i++) {
+    const root = ufFind(i);
+    groupSizes[i] = sizeMap.get(root);
+    groupCenters[i] = centerMap.get(root);
+  }
+}
+
+const _toNeighbor = new THREE.Vector3();
+const _mouseForce = new THREE.Vector3();
+
+function computeSteering() {
+  const effectiveRadius = mode3D ? params.radius * 2 : params.radius;
+  const r2 = effectiveRadius * effectiveRadius;
+  const maxGroupSize = Math.floor(boids.length * GROUP_MAX_RATIO);
+
+  // Build spatial grid and compute groups
+  buildGrid(effectiveRadius);
+  computeGroups(effectiveRadius);
+
+  // Precompute FOV cosine threshold
+  const useFov = params.fov < 360;
+  const halfFovCos = useFov ? Math.cos(params.fov * Math.PI / 360) : -1;
+
+  for (let i = 0; i < boids.length; i++) {
+    const b = boids[i];
+    b.acc.set(0, 0, 0);
+    _sep.set(0, 0, 0);
+    _ali.set(0, 0, 0);
+    _coh.set(0, 0, 0);
+    let count = 0;
+    let sepCount = 0;
+    const oversized = groupSizes[i] > maxGroupSize;
+
+    // Spatial grid neighbor query instead of O(n) scan
+    const neighbors = grid.query(b.pos, effectiveRadius);
+    const velLen = b.vel.length();
+
+    for (let ni = 0; ni < neighbors.length; ni++) {
+      const j = neighbors[ni];
+      if (i === j) continue;
+      const o = boids[j];
+      const d2 = b.pos.distanceToSquared(o.pos);
+      if (d2 >= r2 || d2 <= 0) continue;
+
+      // Perception cone: skip neighbors outside FOV
+      if (useFov && velLen > 0.01) {
+        _toNeighbor.subVectors(o.pos, b.pos);
+        const dot = _toNeighbor.dot(b.vel) / (Math.sqrt(d2) * velLen);
+        if (dot < halfFovCos) continue;
+      }
+
+      count++;
+      _ali.add(o.vel);
+      _coh.add(o.pos);
+
+      const d = Math.sqrt(d2);
+      _diff.subVectors(b.pos, o.pos).divideScalar(d);
+      _sep.add(_diff);
+      sepCount++;
+
+      if (d < BOID_COMFORT_DIST) {
+        const repulse = _diff.clone().normalize();
+        if (d < BOID_MIN_DIST) {
+          const push = (BOID_MIN_DIST - d) * 0.5 + 0.5;
+          b.acc.addScaledVector(repulse, push);
+        } else {
+          const t = (BOID_COMFORT_DIST - d) / (BOID_COMFORT_DIST - BOID_MIN_DIST);
+          b.acc.addScaledVector(repulse, t * t * 0.6);
+        }
+      }
+    }
+
+    b.updateWander();
+
+    if (count > 0) {
+      const aliScale = b.wandering ? params.alignment * 0.3 : params.alignment;
+      _ali.divideScalar(count).normalize().multiplyScalar(params.speed);
+      _ali.sub(b.vel).clampLength(0, 0.15);
+      b.acc.add(_ali.multiplyScalar(aliScale));
+
+      _coh.divideScalar(count).sub(b.pos).normalize().multiplyScalar(params.speed);
+      _coh.sub(b.vel).clampLength(0, 0.15);
+      let cohMult = oversized ? params.cohesion * 0.15 : params.cohesion;
+      if (b.wandering) cohMult *= 0.05;
+      b.acc.add(_coh.multiplyScalar(cohMult));
+
+      if (oversized) {
+        _scatter.subVectors(b.pos, groupCenters[i]);
+        if (!mode3D) _scatter.y = 0;
+        const scatterLen = _scatter.length();
+        if (scatterLen > 0.1) {
+          _scatter.normalize().multiplyScalar(params.speed * 0.06);
+          b.acc.add(_scatter);
+        }
+      }
+    }
+
+    if (b.wandering) {
+      _scatter.copy(b.wanderDir).multiplyScalar(params.speed * 0.25);
+      _scatter.sub(b.vel).clampLength(0, 0.12);
+      b.acc.add(_scatter);
+    }
+
+    if (sepCount > 0) {
+      _sep.divideScalar(sepCount).normalize().multiplyScalar(params.speed);
+      _sep.sub(b.vel).clampLength(0, 0.2);
+      b.acc.add(_sep.multiplyScalar(params.separation));
+    }
+
+    // ── Obstacle avoidance ──
+    for (let k = 0; k < obstacles.length; k++) {
+      _avoid.subVectors(b.pos, obstacles[k]);
+      if (!mode3D) _avoid.y = 0;
+      const dist = _avoid.length();
+      if (dist < OBSTACLE_AVOID_DIST && dist > 0.01) {
+        const norm = _avoid.clone().normalize();
+        const penetration = Math.max(0, OBSTACLE_RADIUS + 2 - dist);
+        const proximity = (OBSTACLE_AVOID_DIST - dist) / (OBSTACLE_AVOID_DIST - OBSTACLE_RADIUS);
+        const force = proximity * proximity * 3.0 + penetration * 5.0;
+        b.acc.add(norm.multiplyScalar(force));
+      }
+      if (dist < OBSTACLE_RADIUS + 2) {
+        const pushDir = dist > 0.01
+          ? new THREE.Vector3().subVectors(b.pos, obstacles[k]).normalize()
+          : new THREE.Vector3(1, 0, 0);
+        if (!mode3D) pushDir.y = 0;
+        b.pos.copy(obstacles[k]).addScaledVector(pushDir, OBSTACLE_RADIUS + 3);
+        const dot = b.vel.dot(pushDir);
+        if (dot < 0) b.vel.addScaledVector(pushDir, -dot * 1.5);
+      }
+    }
+
+    // ── Mouse attract / repel ──
+    if (mouseInScene && mouseBtn !== 0) {
+      _mouseForce.subVectors(mouseWorld, b.pos);
+      if (!mode3D) _mouseForce.y = 0;
+      const md = _mouseForce.length();
+      if (md < MOUSE_RADIUS && md > 1) {
+        const falloff = 1 - md / MOUSE_RADIUS;
+        const sign = mouseBtn === 1 ? 1 : -1; // attract or repel
+        _mouseForce.normalize().multiplyScalar(sign * falloff * falloff * MOUSE_STRENGTH * params.speed);
+        b.acc.add(_mouseForce);
+      }
+    }
+
+    // ── Soft boundary steering ──
+    const margin = BOUND * 0.85;
+    const strength = 0.3;
+    if (b.pos.x > margin) b.acc.x -= (b.pos.x - margin) * strength * 0.01;
+    if (b.pos.x < -margin) b.acc.x -= (b.pos.x + margin) * strength * 0.01;
+    if (mode3D) {
+      if (b.pos.y > margin) b.acc.y -= (b.pos.y - margin) * strength * 0.01;
+      if (b.pos.y < -margin) b.acc.y -= (b.pos.y + margin) * strength * 0.01;
+    }
+    if (b.pos.z > margin) b.acc.z -= (b.pos.z - margin) * strength * 0.01;
+    if (b.pos.z < -margin) b.acc.z -= (b.pos.z + margin) * strength * 0.01;
+
+    if (!mode3D) { b.acc.y = 0; }
+  }
+}
+
+// ── Update boids ──
+const _lookDir = new THREE.Vector3();
+
+function updateBoids() {
+  const posAttr = trailGeo.getAttribute('position');
+  const colAttr = trailGeo.getAttribute('color');
+
+  for (let i = 0; i < boids.length; i++) {
+    const b = boids[i];
+
+    b.vel.add(b.acc);
+    if (!mode3D) { b.vel.y = 0; b.pos.y = 0; }
+    b.vel.clampLength(params.speed * 0.5, params.speed * 1.5);
+    b.pos.add(b.vel);
+
+    b.trail.pop();
+    b.trail.unshift(b.pos.clone());
+
+    // White with subtle warm tint at high speed
+    const speedRatio = b.vel.length() / (params.speed * 1.5);
+    colorObj.setRGB(1.0, 1.0 - speedRatio * 0.08, 1.0 - speedRatio * 0.15);
+
+    dummy.position.copy(b.pos);
+    _lookDir.copy(b.pos).add(b.vel);
+    dummy.lookAt(_lookDir);
+    dummy.updateMatrix();
+    instancedMesh.setMatrixAt(i, dummy.matrix);
+    instancedMesh.setColorAt(i, colorObj);
+
+    const base = i * TRAIL_LENGTH;
+    for (let t = 0; t < TRAIL_LENGTH; t++) {
+      const idx = (base + t) * 3;
+      posAttr.array[idx]     = b.trail[t].x;
+      posAttr.array[idx + 1] = b.trail[t].y;
+      posAttr.array[idx + 2] = b.trail[t].z;
+
+      const fade = 1 - t / TRAIL_LENGTH;
+      colAttr.array[idx]     = 0.4 * fade;
+      colAttr.array[idx + 1] = 0.5 * fade;
+      colAttr.array[idx + 2] = 0.7 * fade;
+    }
+  }
+
+  instancedMesh.instanceMatrix.needsUpdate = true;
+  if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+  posAttr.needsUpdate = true;
+  colAttr.needsUpdate = true;
+}
+
+// ── Camera mode helpers ──
+function setCameraFor3D() {
+  camera.position.set(280, 220, 280);
+  orbitControls.target.set(0, 0, 0);
+  orbitControls.minPolarAngle = 0;
+  orbitControls.maxPolarAngle = Math.PI;
+  orbitControls.update();
+}
+
+function setCameraFor2D() {
+  camera.position.set(0, 500, 0);
+  orbitControls.target.set(0, 0, 0);
+  // Lock to top-down, still allow rotation around Y and zoom
+  orbitControls.minPolarAngle = 0;
+  orbitControls.maxPolarAngle = Math.PI * 0.15;
+  orbitControls.update();
+}
+
+// ── FPS counter ──
+let frameCount = 0, lastFpsTime = performance.now(), fps = 0;
+const statsEl = document.getElementById('stats');
+
+function updateStats() {
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime >= 500) {
+    fps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
+    lastFpsTime = now;
+    frameCount = 0;
+  }
+  const fovTag = params.fov < 360 ? `FOV: ${params.fov}°` : 'Omni';
+  statsEl.textContent = `FPS: ${fps}  |  Boids: ${boids.length}  |  ${mode3D ? '3D' : '2D'}  |  ${fovTag}`;
+}
+
+// ── Animation loop ──
+function animate() {
+  requestAnimationFrame(animate);
+  orbitControls.update();
+
+  if (!paused) {
+    computeSteering();
+    updateBoids();
+  }
+
+  updateStats();
+  renderer.render(scene, camera);
+}
+
+// ── UI wiring ──
+function wireSlider(id, key, isInt) {
+  const slider = document.getElementById(id);
+  const display = document.getElementById('val-' + id);
+  slider.addEventListener('input', () => {
+    const v = isInt ? parseInt(slider.value) : parseFloat(slider.value);
+    params[key] = v;
+    display.textContent = isInt ? v : v.toFixed(1);
+  });
+}
+
+wireSlider('separation', 'separation', false);
+wireSlider('alignment', 'alignment', false);
+wireSlider('cohesion', 'cohesion', false);
+wireSlider('radius', 'radius', true);
+wireSlider('speed', 'speed', false);
+
+// FOV slider (special display with degree symbol)
+const fovSlider = document.getElementById('fov');
+const fovDisplay = document.getElementById('val-fov');
+fovSlider.addEventListener('input', () => {
+  params.fov = parseInt(fovSlider.value);
+  fovDisplay.textContent = params.fov === 360 ? '360° (omni)' : params.fov + '°';
+});
+
+// Count slider
+const countSlider = document.getElementById('count');
+const countDisplay = document.getElementById('val-count');
+countSlider.addEventListener('input', () => {
+  params.count = parseInt(countSlider.value);
+  countDisplay.textContent = params.count;
+});
+countSlider.addEventListener('change', () => { initBoids(); });
+
+// Obstacle slider
+const obstacleSlider = document.getElementById('obstacles');
+const obstacleDisplay = document.getElementById('val-obstacles');
+obstacleSlider.addEventListener('input', () => {
+  params.obstacleCount = parseInt(obstacleSlider.value);
+  obstacleDisplay.textContent = params.obstacleCount;
+});
+obstacleSlider.addEventListener('change', () => { spawnObstacles(); });
+
+// 2D / 3D toggle
+const modeSwitch = document.getElementById('mode-switch');
+const modeLabel = document.getElementById('mode-label');
+modeSwitch.addEventListener('change', () => {
+  mode3D = modeSwitch.checked;
+  modeLabel.textContent = mode3D ? '3D' : '2D';
+  if (mode3D) {
+    setCameraFor3D();
+    // Restore bounding box to full 3D
+    boxLine.scale.set(1, 1, 1);
+  } else {
+    setCameraFor2D();
+    // Flatten bounding box to a thin plane
+    boxLine.scale.set(1, 0.005, 1);
+  }
+  initBoids();
+});
+
+// Pause
+const pauseBtn = document.getElementById('btn-pause');
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+});
+
+// Reset
+document.getElementById('btn-reset').addEventListener('click', () => {
+  params = { ...DEFAULTS };
+  document.getElementById('separation').value = DEFAULTS.separation;
+  document.getElementById('alignment').value = DEFAULTS.alignment;
+  document.getElementById('cohesion').value = DEFAULTS.cohesion;
+  document.getElementById('radius').value = DEFAULTS.radius;
+  document.getElementById('speed').value = DEFAULTS.speed;
+  document.getElementById('count').value = DEFAULTS.count;
+  document.getElementById('obstacles').value = DEFAULTS.obstacleCount;
+
+  document.getElementById('val-separation').textContent = DEFAULTS.separation.toFixed(1);
+  document.getElementById('val-alignment').textContent = DEFAULTS.alignment.toFixed(1);
+  document.getElementById('val-cohesion').textContent = DEFAULTS.cohesion.toFixed(1);
+  document.getElementById('val-radius').textContent = DEFAULTS.radius;
+  document.getElementById('val-speed').textContent = DEFAULTS.speed.toFixed(1);
+  document.getElementById('val-count').textContent = DEFAULTS.count;
+  document.getElementById('val-obstacles').textContent = DEFAULTS.obstacleCount;
+
+  document.getElementById('fov').value = DEFAULTS.fov;
+  document.getElementById('val-fov').textContent = DEFAULTS.fov === 360 ? '360° (omni)' : DEFAULTS.fov + '°';
+
+  paused = false;
+  pauseBtn.textContent = 'Pause';
+
+  // Re-highlight default preset
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelector('.preset-btn[data-preset="default"]').classList.add('active');
+
+  // Reset mode to 3D
+  mode3D = true;
+  modeSwitch.checked = true;
+  modeLabel.textContent = '3D';
+  boxLine.scale.set(1, 1, 1);
+  setCameraFor3D();
+
+  initBoids();
+});
+
+// ── Presets ──
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  params = { ...p };
+
+  // Update all sliders and displays
+  document.getElementById('separation').value = p.separation;
+  document.getElementById('alignment').value = p.alignment;
+  document.getElementById('cohesion').value = p.cohesion;
+  document.getElementById('radius').value = p.radius;
+  document.getElementById('speed').value = p.speed;
+  document.getElementById('count').value = p.count;
+  document.getElementById('obstacles').value = p.obstacleCount;
+
+  document.getElementById('val-separation').textContent = p.separation.toFixed(1);
+  document.getElementById('val-alignment').textContent = p.alignment.toFixed(1);
+  document.getElementById('val-cohesion').textContent = p.cohesion.toFixed(1);
+  document.getElementById('val-radius').textContent = p.radius;
+  document.getElementById('val-speed').textContent = p.speed.toFixed(1);
+  document.getElementById('val-count').textContent = p.count;
+  document.getElementById('val-obstacles').textContent = p.obstacleCount;
+
+  document.getElementById('fov').value = p.fov;
+  document.getElementById('val-fov').textContent = p.fov === 360 ? '360° (omni)' : p.fov + '°';
+
+  // Highlight active preset button
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.querySelector(`.preset-btn[data-preset="${name}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  paused = false;
+  pauseBtn.textContent = 'Pause';
+  initBoids();
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
+
+// Clear active preset highlight when any slider is manually adjusted
+document.querySelectorAll('#controls-body input[type="range"]').forEach(slider => {
+  slider.addEventListener('input', () => {
+    document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+  });
+});
+
+// Collapse toggle
+const toggleBtn = document.getElementById('toggle-btn');
+const controlsBody = document.getElementById('controls-body');
+toggleBtn.addEventListener('click', () => {
+  controlsBody.classList.toggle('collapsed');
+  toggleBtn.innerHTML = controlsBody.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
+});
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Mouse interaction ──
+const interactPlane = new THREE.Plane();
+const _planeNormal = new THREE.Vector3();
+const _planeIntersect = new THREE.Vector3();
+
+function updateMouseWorld(e) {
+  mouseNDC.x = (e.clientX / innerWidth) * 2 - 1;
+  mouseNDC.y = -(e.clientY / innerHeight) * 2 + 1;
+  mouseRaycaster.setFromCamera(mouseNDC, camera);
+  if (mode3D) {
+    camera.getWorldDirection(_planeNormal).negate();
+    interactPlane.setFromNormalAndCoplanarPoint(_planeNormal, new THREE.Vector3(0, 0, 0));
+  } else {
+    interactPlane.set(new THREE.Vector3(0, 1, 0), 0);
+  }
+  if (mouseRaycaster.ray.intersectPlane(interactPlane, _planeIntersect)) {
+    mouseWorld.copy(_planeIntersect);
+  }
+}
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  mouseInScene = true;
+  updateMouseWorld(e);
+});
+renderer.domElement.addEventListener('mouseleave', () => { mouseInScene = false; });
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button === 0) mouseBtn = 1;
+  else if (e.button === 2) mouseBtn = 2;
+  updateMouseWorld(e);
+});
+renderer.domElement.addEventListener('mouseup', () => { mouseBtn = 0; });
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ── Start ──
+initBoids();
+animate();
+</script>
+</body>
+</html>
