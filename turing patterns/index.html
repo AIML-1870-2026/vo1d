@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turing Patterns Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+      --text: #e0e0e0; --text2: #a0a0b0; --accent: #00d2ff;
+      --accent2: #7b2ff7; --surface: #232340; --border: #333355;
+      --sidebar-w: 280px; --topbar-h: 48px; --bottombar-h: 44px;
+      --radius: 6px; --transition: 200ms ease;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg); color: var(--text); overflow: hidden;
+      height: 100vh; display: flex; flex-direction: column;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: var(--text); }
+    select, input { font-family: inherit; }
+
+    /* Top Bar */
+    #topbar {
+      height: var(--topbar-h); background: var(--bg2); display: flex;
+      align-items: center; padding: 0 16px; gap: 12px; border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 10;
+    }
+    #topbar h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+    #topbar .spacer { flex: 1; }
+    .tb-btn {
+      padding: 6px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+      background: var(--bg3); transition: background var(--transition);
+    }
+    .tb-btn:hover { background: var(--accent); color: #000; }
+
+    /* Main Layout */
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Sidebar */
+    #sidebar {
+      width: var(--sidebar-w); min-width: var(--sidebar-w); background: var(--bg2);
+      border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden;
+      flex-shrink: 0; transition: margin-left var(--transition);
+    }
+    #sidebar.collapsed { margin-left: calc(-1 * var(--sidebar-w)); }
+    .section { border-bottom: 1px solid var(--border); }
+    .section-header {
+      padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--text2); cursor: pointer; display: flex;
+      align-items: center; justify-content: space-between; user-select: none;
+    }
+    .section-header:hover { color: var(--text); }
+    .section-header .arrow { transition: transform var(--transition); font-size: 10px; }
+    .section-header.collapsed .arrow { transform: rotate(-90deg); }
+    .section-body { padding: 8px 14px 14px; }
+    .section-body.hidden { display: none; }
+    .param-row { margin-bottom: 10px; }
+    .param-label {
+      display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;
+    }
+    .param-label span:last-child { color: var(--accent); font-variant-numeric: tabular-nums; }
+    input[type="range"] {
+      -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px;
+      background: var(--border); outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer; border: none;
+    }
+    select {
+      width: 100%; padding: 6px 8px; border-radius: var(--radius);
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .preset-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .preset-btn {
+      padding: 5px 10px; border-radius: var(--radius); font-size: 11px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: all var(--transition); white-space: nowrap;
+    }
+    .preset-btn:hover, .preset-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .tool-group { display: flex; gap: 4px; margin-bottom: 8px; }
+    .tool-btn {
+      flex: 1; padding: 6px; border-radius: var(--radius); font-size: 11px;
+      background: var(--surface); border: 1px solid var(--border); text-align: center;
+      transition: all var(--transition);
+    }
+    .tool-btn:hover, .tool-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+    .toggle {
+      width: 36px; height: 20px; border-radius: 10px; background: var(--border);
+      position: relative; cursor: pointer; transition: background var(--transition); flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: transform var(--transition);
+    }
+    .toggle.on::after { transform: translateX(16px); }
+    .color-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+    .swatch {
+      width: 32px; height: 20px; border-radius: 3px; cursor: pointer;
+      border: 2px solid transparent; transition: border-color var(--transition);
+    }
+    .swatch.active, .swatch:hover { border-color: var(--accent); }
+    .export-btn {
+      width: 100%; padding: 8px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+      background: var(--accent); color: #000; transition: opacity var(--transition);
+    }
+    .export-btn:hover { opacity: 0.85; }
+    .color-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .color-row label { font-size: 12px; flex-shrink: 0; }
+    .color-row input[type="color"] {
+      width: 40px; height: 24px; border: 1px solid var(--border);
+      border-radius: 3px; padding: 0; cursor: pointer; background: none;
+    }
+
+    /* Canvas */
+    #canvas-container { flex: 1; position: relative; overflow: hidden; background: #000; }
+    #simCanvas { display: block; width: 100%; height: 100%; }
+    #brush-cursor {
+      position: fixed; pointer-events: none; border: 2px solid rgba(255,255,255,0.4);
+      border-radius: 50%; transform: translate(-50%, -50%); z-index: 50; display: none;
+    }
+
+    /* Bottom Bar */
+    #bottombar {
+      height: var(--bottombar-h); background: var(--bg2); display: flex;
+      align-items: center; padding: 0 16px; gap: 8px;
+      border-top: 1px solid var(--border); flex-shrink: 0; z-index: 10;
+    }
+    .bb-btn {
+      padding: 5px 12px; border-radius: var(--radius); font-size: 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: all var(--transition); display: flex; align-items: center; gap: 4px;
+    }
+    .bb-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+    .bb-btn.play { background: var(--accent); color: #000; }
+    .bb-spacer { flex: 1; }
+    .bb-info { font-size: 12px; color: var(--text2); font-variant-numeric: tabular-nums; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); z-index: 100; display: none;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg2); border-radius: 12px; border: 1px solid var(--border);
+      max-width: 90vw; max-height: 85vh; overflow: auto; padding: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal h2 { font-size: 18px; margin-bottom: 16px; }
+    .modal p { font-size: 13px; line-height: 1.6; color: var(--text2); margin-bottom: 12px; }
+    .modal-close {
+      float: right; font-size: 20px; cursor: pointer; color: var(--text2);
+      padding: 4px 8px; border-radius: var(--radius);
+    }
+    .modal-close:hover { color: var(--text); background: var(--surface); }
+
+    /* Parameter Map */
+    #paramMapModal .modal { width: 600px; }
+    #paramMapCanvas { width: 100%; border-radius: var(--radius); cursor: crosshair; display: block; }
+
+    /* Export Dialog */
+    #exportModal .modal { width: 320px; }
+    .export-option {
+      padding: 8px 12px; border-radius: var(--radius); cursor: pointer;
+      margin-bottom: 4px; font-size: 13px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: all var(--transition);
+    }
+    .export-option:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      #main { flex-direction: column; }
+      #sidebar {
+        width: 100%; min-width: 100%; max-height: 50vh; order: 2;
+        border-right: none; border-top: 1px solid var(--border);
+      }
+      #sidebar.collapsed { margin-left: 0; max-height: 0; overflow: hidden; }
+      #canvas-container { order: 1; }
+      :root { --sidebar-w: 100%; }
+    }
+
+    /* Sidebar toggle */
+    #sidebar-toggle {
+      padding: 6px 10px; border-radius: var(--radius); font-size: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    #sidebar-toggle:hover { background: var(--accent); color: #000; }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div id="topbar">
+  <button id="sidebar-toggle" title="Toggle sidebar">&#9776;</button>
+  <h1>Turing Patterns Explorer</h1>
+  <div class="spacer"></div>
+  <button class="tb-btn" id="paramMapBtn">Parameter Map</button>
+  <button class="tb-btn" id="infoBtn">?</button>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Sidebar -->
+  <div id="sidebar">
+
+    <!-- Model -->
+    <div class="section">
+      <div class="section-header" data-target="sec-model">Model <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-model">
+        <select id="modelSelect">
+          <option value="gray-scott">Gray-Scott</option>
+          <option value="fitzhugh-nagumo">FitzHugh-Nagumo</option>
+          <option value="brusselator">Brusselator</option>
+          <option value="schnakenberg">Schnakenberg</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="section">
+      <div class="section-header" data-target="sec-presets">Presets <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-presets">
+        <div class="preset-grid" id="presetGrid"></div>
+      </div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="section">
+      <div class="section-header" data-target="sec-params">Parameters <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-params">
+        <div id="paramSliders"></div>
+      </div>
+    </div>
+
+    <!-- Simulation Settings -->
+    <div class="section">
+      <div class="section-header" data-target="sec-sim">Simulation <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-sim">
+        <div class="param-row">
+          <div class="param-label"><span>Resolution</span></div>
+          <select id="resolutionSelect">
+            <option value="256">256 x 256</option>
+            <option value="512" selected>512 x 512</option>
+            <option value="1024">1024 x 1024</option>
+          </select>
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Steps / Frame</span><span id="stepsVal">8</span></div>
+          <input type="range" id="stepsSlider" min="1" max="32" value="8" step="1">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Time step (dt)</span><span id="dtVal">1.000</span></div>
+          <input type="range" id="dtSlider" min="0.001" max="2" value="1" step="0.001">
+        </div>
+        <div class="toggle-row">
+          <span>Boundary:</span>
+          <span id="boundaryLabel">Periodic</span>
+          <div class="toggle" id="boundaryToggle"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Brush Tools -->
+    <div class="section">
+      <div class="section-header" data-target="sec-brush">Brush Tools <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-brush">
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="add">Add V</button>
+          <button class="tool-btn" data-tool="erase">Erase</button>
+          <button class="tool-btn" data-tool="repel">Repel</button>
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Brush Size</span><span id="brushSizeVal">10</span></div>
+          <input type="range" id="brushSizeSlider" min="1" max="50" value="10" step="1">
+        </div>
+        <div class="tool-group">
+          <button class="tool-btn active" data-shape="circle">Circle</button>
+          <button class="tool-btn" data-shape="square">Square</button>
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Softness</span><span id="brushSoftVal">0.5</span></div>
+          <input type="range" id="brushSoftSlider" min="0" max="1" value="0.5" step="0.05">
+        </div>
+      </div>
+    </div>
+
+    <!-- Visualization -->
+    <div class="section">
+      <div class="section-header" data-target="sec-viz">Visualization <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-viz">
+        <div class="param-row">
+          <div class="param-label"><span>Color Map</span></div>
+          <select id="colormapSelect">
+            <option value="0">Grayscale</option>
+            <option value="1" selected>Inferno</option>
+            <option value="2">Viridis</option>
+            <option value="3">Magma</option>
+            <option value="4">Plasma</option>
+            <option value="5">Ocean</option>
+            <option value="6">Neon</option>
+            <option value="7">Custom</option>
+          </select>
+        </div>
+        <div class="color-row" id="customColorRow" style="display:none;">
+          <label>From:</label><input type="color" id="customColor1" value="#000000">
+          <label>To:</label><input type="color" id="customColor2" value="#00d2ff">
+        </div>
+        <div class="toggle-row">
+          <span>Invert</span>
+          <div class="toggle" id="invertToggle"></div>
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Brightness</span><span id="brightnessVal">0.00</span></div>
+          <input type="range" id="brightnessSlider" min="-0.5" max="0.5" value="0" step="0.01">
+        </div>
+        <div class="param-row">
+          <div class="param-label"><span>Contrast</span><span id="contrastVal">1.00</span></div>
+          <input type="range" id="contrastSlider" min="0.2" max="3" value="1" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="section">
+      <div class="section-header" data-target="sec-export">Export <span class="arrow">&#9660;</span></div>
+      <div class="section-body" id="sec-export">
+        <button class="export-btn" id="exportBtn">Download Image</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-container">
+    <canvas id="simCanvas"></canvas>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div id="bottombar">
+  <button class="bb-btn play" id="playBtn">&#9654; Play</button>
+  <button class="bb-btn" id="stepBtn">Step</button>
+  <button class="bb-btn" id="resetBtn">Reset</button>
+  <button class="bb-btn" id="randomBtn">Randomize</button>
+  <div class="bb-spacer"></div>
+  <span class="bb-info" id="iterInfo">Iter: 0</span>
+  <span class="bb-info" id="fpsInfo">60 FPS</span>
+</div>
+
+<!-- Brush Cursor -->
+<div id="brush-cursor"></div>
+
+<!-- Info Modal -->
+<div class="modal-overlay" id="infoModal">
+  <div class="modal" style="max-width:520px;">
+    <button class="modal-close" onclick="document.getElementById('infoModal').classList.remove('open')">&times;</button>
+    <h2>Turing Patterns Explorer</h2>
+    <p><strong>Reaction-diffusion systems</strong> describe how chemicals interact and spread. Alan Turing showed in 1952 that such systems can spontaneously form patterns — spots, stripes, spirals, and more — from an initially uniform state.</p>
+    <p><strong>How to use:</strong> Select a model and preset, then watch patterns emerge. Click/drag on the canvas to add seeds of chemical V. Adjust parameters with the sliders to explore different pattern types.</p>
+    <p><strong>Models:</strong> Gray-Scott (default, most versatile), FitzHugh-Nagumo (excitable media), Brusselator (chemical kinetics), and Schnakenberg (activator-inhibitor).</p>
+    <p><strong>Controls:</strong> Play/Pause, Step (advance one frame), Reset, Randomize. Use the Parameter Map for Gray-Scott to explore the feed/kill rate space.</p>
+    <p style="color:var(--text2);font-size:11px;margin-top:16px;">Built with WebGL 2. GPU-accelerated simulation.</p>
+  </div>
+</div>
+
+<!-- Parameter Map Modal -->
+<div class="modal-overlay" id="paramMapModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('paramMapModal').classList.remove('open')">&times;</button>
+    <h2>Parameter Space — Gray-Scott (f, k)</h2>
+    <p>Click anywhere on the map to set feed rate (f) and kill rate (k). Named presets are marked with dots.</p>
+    <canvas id="paramMapCanvas" width="540" height="400"></canvas>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('exportModal').classList.remove('open')">&times;</button>
+    <h2>Export Image</h2>
+    <p>Choose export resolution:</p>
+    <div id="exportOptions"></div>
+  </div>
+</div>
+
+<!-- ==================== SHADERS ==================== -->
+
+<!-- Vertex Shader -->
+<script id="vs-quad" type="x-shader/x-vertex">#version 300 es
+in vec2 a_position;
+out vec2 v_uv;
+void main() {
+  v_uv = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}
+</script>
+
+<!-- Gray-Scott Simulation -->
+<script id="fs-gray-scott" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_texel;
+uniform float u_f, u_k, u_Du, u_Dv, u_dt;
+in vec2 v_uv;
+out vec4 fragColor;
+void main() {
+  vec2 c = texture(u_state, v_uv).rg;
+  vec2 l = texture(u_state, v_uv - vec2(u_texel.x, 0.0)).rg;
+  vec2 r = texture(u_state, v_uv + vec2(u_texel.x, 0.0)).rg;
+  vec2 u = texture(u_state, v_uv + vec2(0.0, u_texel.y)).rg;
+  vec2 d = texture(u_state, v_uv - vec2(0.0, u_texel.y)).rg;
+  vec2 lap = l + r + u + d - 4.0 * c;
+  float du = u_Du * lap.r - c.r * c.g * c.g + u_f * (1.0 - c.r);
+  float dv = u_Dv * lap.g + c.r * c.g * c.g - (u_f + u_k) * c.g;
+  vec2 nv = c + vec2(du, dv) * u_dt;
+  fragColor = vec4(clamp(nv, 0.0, 1.0), 0.0, 1.0);
+}
+</script>
+
+<!-- FitzHugh-Nagumo Simulation -->
+<script id="fs-fitzhugh-nagumo" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_texel;
+uniform float u_a, u_epsilon, u_Du, u_Dv, u_dt;
+in vec2 v_uv;
+out vec4 fragColor;
+void main() {
+  vec2 c = texture(u_state, v_uv).rg;
+  vec2 l = texture(u_state, v_uv - vec2(u_texel.x, 0.0)).rg;
+  vec2 r = texture(u_state, v_uv + vec2(u_texel.x, 0.0)).rg;
+  vec2 u = texture(u_state, v_uv + vec2(0.0, u_texel.y)).rg;
+  vec2 d = texture(u_state, v_uv - vec2(0.0, u_texel.y)).rg;
+  vec2 lap = l + r + u + d - 4.0 * c;
+  float du = u_Du * lap.r + c.r - c.r*c.r*c.r - c.g + u_a;
+  float dv = u_Dv * lap.g + u_epsilon * (c.r - c.g);
+  vec2 nv = c + vec2(du, dv) * u_dt;
+  fragColor = vec4(clamp(nv, -2.0, 2.0), 0.0, 1.0);
+}
+</script>
+
+<!-- Brusselator Simulation -->
+<script id="fs-brusselator" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_texel;
+uniform float u_A, u_B, u_Du, u_Dv, u_dt;
+in vec2 v_uv;
+out vec4 fragColor;
+void main() {
+  vec2 c = texture(u_state, v_uv).rg;
+  vec2 l = texture(u_state, v_uv - vec2(u_texel.x, 0.0)).rg;
+  vec2 r = texture(u_state, v_uv + vec2(u_texel.x, 0.0)).rg;
+  vec2 u = texture(u_state, v_uv + vec2(0.0, u_texel.y)).rg;
+  vec2 d = texture(u_state, v_uv - vec2(0.0, u_texel.y)).rg;
+  vec2 lap = l + r + u + d - 4.0 * c;
+  float du = u_Du * lap.r + u_A - (u_B + 1.0)*c.r + c.r*c.r*c.g;
+  float dv = u_Dv * lap.g + u_B*c.r - c.r*c.r*c.g;
+  vec2 nv = c + vec2(du, dv) * u_dt;
+  fragColor = vec4(clamp(nv, 0.0, 20.0), 0.0, 1.0);
+}
+</script>
+
+<!-- Schnakenberg Simulation -->
+<script id="fs-schnakenberg" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_texel;
+uniform float u_a, u_b, u_Du, u_Dv, u_dt;
+in vec2 v_uv;
+out vec4 fragColor;
+void main() {
+  vec2 c = texture(u_state, v_uv).rg;
+  vec2 l = texture(u_state, v_uv - vec2(u_texel.x, 0.0)).rg;
+  vec2 r = texture(u_state, v_uv + vec2(u_texel.x, 0.0)).rg;
+  vec2 u = texture(u_state, v_uv + vec2(0.0, u_texel.y)).rg;
+  vec2 d = texture(u_state, v_uv - vec2(0.0, u_texel.y)).rg;
+  vec2 lap = l + r + u + d - 4.0 * c;
+  float du = u_Du * lap.r + u_a - c.r + c.r*c.r*c.g;
+  float dv = u_Dv * lap.g + u_b - c.r*c.r*c.g;
+  vec2 nv = c + vec2(du, dv) * u_dt;
+  fragColor = vec4(clamp(nv, 0.0, 20.0), 0.0, 1.0);
+}
+</script>
+
+<!-- Render Shader -->
+<script id="fs-render" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform int u_colormap;
+uniform bool u_invert;
+uniform float u_brightness, u_contrast;
+uniform vec3 u_customColor1, u_customColor2;
+uniform float u_displayScale;
+in vec2 v_uv;
+out vec4 fragColor;
+
+vec3 grayscale(float t) { return vec3(t); }
+
+vec3 inferno(float t) {
+  const vec3 c0=vec3(0.0002,0.0016,-0.0194);
+  const vec3 c1=vec3(0.1065,0.5640,3.9327);
+  const vec3 c2=vec3(11.6025,-3.9729,-15.9424);
+  const vec3 c3=vec3(-41.7040,17.4364,44.3541);
+  const vec3 c4=vec3(77.1629,-33.4024,-81.8073);
+  const vec3 c5=vec3(-73.0691,32.6261,73.2098);
+  const vec3 c6=vec3(27.1100,-12.2427,-23.0713);
+  return clamp(c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))),0.0,1.0);
+}
+
+vec3 viridis(float t) {
+  const vec3 c0=vec3(0.2777,0.0054,0.3341);
+  const vec3 c1=vec3(0.1051,1.4046,1.3846);
+  const vec3 c2=vec3(-0.3309,0.2148,0.0951);
+  const vec3 c3=vec3(-4.6342,-5.7991,-19.3324);
+  const vec3 c4=vec3(6.2283,14.1799,56.6906);
+  const vec3 c5=vec3(4.7764,-13.7451,-65.3530);
+  const vec3 c6=vec3(-5.4355,4.6459,26.3124);
+  return clamp(c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))),0.0,1.0);
+}
+
+vec3 magma(float t) {
+  const vec3 c0=vec3(-0.0021,-0.0007,-0.0054);
+  const vec3 c1=vec3(0.2517,0.6775,2.4940);
+  const vec3 c2=vec3(8.3537,-3.5777,0.3145);
+  const vec3 c3=vec3(-27.6687,14.2647,-13.6492);
+  const vec3 c4=vec3(52.1761,-27.9436,12.9442);
+  const vec3 c5=vec3(-50.7685,29.0466,4.2342);
+  const vec3 c6=vec3(18.6557,-11.4898,-5.6020);
+  return clamp(c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))),0.0,1.0);
+}
+
+vec3 plasma(float t) {
+  const vec3 c0=vec3(0.0587,0.0233,0.5433);
+  const vec3 c1=vec3(2.1765,0.2384,-0.7540);
+  const vec3 c2=vec3(-2.6895,-7.4559,3.1108);
+  const vec3 c3=vec3(6.1303,42.3462,-28.5189);
+  const vec3 c4=vec3(-11.1074,-82.6663,60.1398);
+  const vec3 c5=vec3(10.0231,71.4136,-54.0722);
+  const vec3 c6=vec3(-3.6587,-22.9315,18.1919);
+  return clamp(c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6))))),0.0,1.0);
+}
+
+vec3 ocean(float t) {
+  return mix(vec3(0.0,0.02,0.15), vec3(0.85,0.95,1.0), t);
+}
+
+vec3 neon(float t) {
+  if(t < 0.33) return mix(vec3(0.0), vec3(0.0,1.0,1.0), t/0.33);
+  if(t < 0.66) return mix(vec3(0.0,1.0,1.0), vec3(1.0,0.0,1.0), (t-0.33)/0.33);
+  return mix(vec3(1.0,0.0,1.0), vec3(1.0), (t-0.66)/0.34);
+}
+
+void main() {
+  vec2 st = texture(u_state, v_uv).rg;
+  float v = st.g * u_displayScale;
+  v = clamp(v, 0.0, 1.0);
+  if(u_invert) v = 1.0 - v;
+  v = (v - 0.5) * u_contrast + 0.5 + u_brightness;
+  v = clamp(v, 0.0, 1.0);
+  vec3 color;
+  if(u_colormap==0) color = grayscale(v);
+  else if(u_colormap==1) color = inferno(v);
+  else if(u_colormap==2) color = viridis(v);
+  else if(u_colormap==3) color = magma(v);
+  else if(u_colormap==4) color = plasma(v);
+  else if(u_colormap==5) color = ocean(v);
+  else if(u_colormap==6) color = neon(v);
+  else color = mix(u_customColor1, u_customColor2, v);
+  fragColor = vec4(color, 1.0);
+}
+</script>
+
+<!-- Brush Shader -->
+<script id="fs-brush" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+uniform sampler2D u_state;
+uniform vec2 u_brushPos;
+uniform float u_brushSize;
+uniform int u_tool;
+uniform int u_shape;
+uniform float u_softness;
+uniform vec2 u_resolution;
+uniform vec2 u_steadyState;
+in vec2 v_uv;
+out vec4 fragColor;
+void main() {
+  vec4 s = texture(u_state, v_uv);
+  vec2 pix = v_uv * u_resolution;
+  float dist;
+  if(u_shape == 0) {
+    dist = length(pix - u_brushPos);
+  } else {
+    vec2 dd = abs(pix - u_brushPos);
+    dist = max(dd.x, dd.y);
+  }
+  float r = u_brushSize;
+  float edge = r * (1.0 - u_softness * 0.9);
+  float influence = 1.0 - smoothstep(edge, r, dist);
+  if(influence > 0.001) {
+    vec2 target;
+    if(u_tool == 0) target = vec2(0.0, 1.0);
+    else if(u_tool == 1) target = u_steadyState;
+    else target = vec2(1.0, 0.0);
+    s.rg = mix(s.rg, target, influence);
+  }
+  fragColor = s;
+}
+</script>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+'use strict';
+
+// ============================================================
+// MODEL DEFINITIONS
+// ============================================================
+const MODELS = {
+  'gray-scott': {
+    name: 'Gray-Scott',
+    params: [
+      { key: 'f', label: 'Feed rate (f)', min: 0, max: 0.1, default: 0.0367, step: 0.0001 },
+      { key: 'k', label: 'Kill rate (k)', min: 0, max: 0.1, default: 0.0649, step: 0.0001 },
+      { key: 'Du', label: 'Diffusion U', min: 0, max: 1, default: 0.21, step: 0.001 },
+      { key: 'Dv', label: 'Diffusion V', min: 0, max: 1, default: 0.105, step: 0.001 }
+    ],
+    presets: [
+      { name: 'Mitosis', f: 0.0367, k: 0.0649 },
+      { name: 'Coral', f: 0.0545, k: 0.062 },
+      { name: 'Maze', f: 0.029, k: 0.057 },
+      { name: 'Spots', f: 0.035, k: 0.065 },
+      { name: 'Worms', f: 0.031, k: 0.063 },
+      { name: 'Spirals', f: 0.014, k: 0.045 },
+      { name: 'Pulsating', f: 0.025, k: 0.06 },
+      { name: 'U-Skate', f: 0.062, k: 0.0609 }
+    ],
+    steadyState: () => [1.0, 0.0],
+    seedValues: [0.5, 0.25],
+    defaultDt: 1.0,
+    displayScale: 1.0,
+    uniformNames: ['u_f', 'u_k', 'u_Du', 'u_Dv']
+  },
+  'fitzhugh-nagumo': {
+    name: 'FitzHugh-Nagumo',
+    params: [
+      { key: 'a', label: 'a', min: -0.5, max: 0.5, default: 0.0, step: 0.01 },
+      { key: 'epsilon', label: 'Epsilon (ε)', min: 0.001, max: 0.1, default: 0.01, step: 0.001 },
+      { key: 'Du', label: 'Diffusion U', min: 0, max: 10, default: 2.0, step: 0.01 },
+      { key: 'Dv', label: 'Diffusion V', min: 0, max: 10, default: 1.0, step: 0.01 }
+    ],
+    presets: [
+      { name: 'Traveling Waves', a: 0.0, epsilon: 0.02, Du: 2.0, Dv: 0.0 },
+      { name: 'Spiral Waves', a: -0.1, epsilon: 0.005, Du: 2.0, Dv: 0.0 },
+      { name: 'Labyrinth', a: 0.0, epsilon: 0.01, Du: 2.0, Dv: 1.0 }
+    ],
+    steadyState: (p) => [0.0, 0.0],
+    seedValues: [1.0, 0.0],
+    defaultDt: 0.05,
+    displayScale: 1.0,
+    uniformNames: ['u_a', 'u_epsilon', 'u_Du', 'u_Dv']
+  },
+  'brusselator': {
+    name: 'Brusselator',
+    params: [
+      { key: 'A', label: 'A', min: 0, max: 5, default: 4.5, step: 0.01 },
+      { key: 'B', label: 'B', min: 0, max: 10, default: 8.0, step: 0.01 },
+      { key: 'Du', label: 'Diffusion U', min: 0, max: 20, default: 2.0, step: 0.1 },
+      { key: 'Dv', label: 'Diffusion V', min: 0, max: 100, default: 16.0, step: 0.5 }
+    ],
+    presets: [
+      { name: 'Turing Spots', A: 4.5, B: 8.0, Du: 2.0, Dv: 16.0 },
+      { name: 'Turing Stripes', A: 2.0, B: 5.2, Du: 2.0, Dv: 22.0 },
+      { name: 'Honeycomb', A: 3.0, B: 9.0, Du: 2.0, Dv: 20.0 }
+    ],
+    steadyState: (p) => [p.A, p.B / p.A],
+    seedValues: null,
+    defaultDt: 0.002,
+    displayScale: 1.0,
+    uniformNames: ['u_A', 'u_B', 'u_Du', 'u_Dv']
+  },
+  'schnakenberg': {
+    name: 'Schnakenberg',
+    params: [
+      { key: 'a', label: 'a', min: 0, max: 1, default: 0.1, step: 0.01 },
+      { key: 'b', label: 'b', min: 0, max: 2, default: 0.9, step: 0.01 },
+      { key: 'Du', label: 'Diffusion U', min: 0, max: 10, default: 1.0, step: 0.01 },
+      { key: 'Dv', label: 'Diffusion V', min: 0, max: 100, default: 20.0, step: 0.5 }
+    ],
+    presets: [
+      { name: 'Spots', a: 0.1, b: 0.9, Du: 1.0, Dv: 20.0 },
+      { name: 'Stripes', a: 0.05, b: 1.5, Du: 1.0, Dv: 30.0 },
+      { name: 'Mixed', a: 0.1, b: 1.0, Du: 1.0, Dv: 25.0 }
+    ],
+    steadyState: (p) => [p.a + p.b, p.b / ((p.a + p.b) * (p.a + p.b))],
+    seedValues: null,
+    defaultDt: 0.005,
+    displayScale: 1.0,
+    uniformNames: ['u_a', 'u_b', 'u_Du', 'u_Dv']
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  model: 'gray-scott',
+  params: {},
+  resolution: 512,
+  stepsPerFrame: 8,
+  dt: 1.0,
+  boundary: 'periodic',
+  brush: { tool: 0, size: 10, shape: 0, softness: 0.5 },
+  colormap: 1,
+  invert: false,
+  brightness: 0,
+  contrast: 1,
+  customColor1: [0, 0, 0],
+  customColor2: [0, 0.82, 1],
+  playing: true,
+  iterations: 0,
+  activePreset: null
+};
+
+// ============================================================
+// WEBGL GLOBALS
+// ============================================================
+let gl, canvas;
+let simWidth, simHeight;
+let textures = [null, null];
+let framebuffers = [null, null];
+let currentSrc = 0;
+let quadVAO;
+const simPrograms = {};
+let renderProgram, renderUniforms;
+let brushProgram, brushUniforms;
+let needsStep = false;
+let brushActive = false;
+let brushX = 0, brushY = 0;
+let lastBrushX = -1, lastBrushY = -1;
+
+// FPS tracking
+let frameCount = 0, lastFPSTime = 0, fps = 60;
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+function init() {
+  canvas = document.getElementById('simCanvas');
+  gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: false });
+  if (!gl) {
+    document.getElementById('canvas-container').innerHTML =
+      '<p style="color:#fff;padding:40px;text-align:center;">WebGL 2 is required. Please use a modern browser.</p>';
+    return;
+  }
+
+  const ext = gl.getExtension('EXT_color_buffer_float');
+  if (!ext) {
+    console.warn('EXT_color_buffer_float not available, trying half float');
+  }
+  gl.getExtension('OES_texture_float_linear');
+
+  // Load default params
+  loadModelDefaults();
+
+  // Create quad geometry
+  createQuad();
+
+  // Compile programs
+  compileAllPrograms();
+
+  // Create simulation resources
+  createSimResources();
+
+  // Init simulation
+  initSimulation('seed');
+
+  // Setup UI
+  setupUI();
+
+  // Start loop
+  requestAnimationFrame(animate);
+}
+
+function createQuad() {
+  const verts = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+  quadVAO = gl.createVertexArray();
+  gl.bindVertexArray(quadVAO);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+}
+
+function compileShader(src, type) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error('Shader compile error:', gl.getShaderInfoLog(s));
+    console.error('Source:', src.split('\n').map((l,i)=>`${i+1}: ${l}`).join('\n'));
+    gl.deleteShader(s);
+    return null;
+  }
+  return s;
+}
+
+function createProgram(vsSrc, fsSrc) {
+  const vs = compileShader(vsSrc, gl.VERTEX_SHADER);
+  const fs = compileShader(fsSrc, gl.FRAGMENT_SHADER);
+  if (!vs || !fs) return null;
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.bindAttribLocation(prog, 0, 'a_position');
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(prog));
+    return null;
+  }
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+  return prog;
+}
+
+function getUniforms(prog, names) {
+  const u = {};
+  for (const n of names) u[n] = gl.getUniformLocation(prog, n);
+  return u;
+}
+
+function compileAllPrograms() {
+  const vsSrc = document.getElementById('vs-quad').textContent;
+
+  // Simulation programs
+  const modelIds = {
+    'gray-scott': 'fs-gray-scott',
+    'fitzhugh-nagumo': 'fs-fitzhugh-nagumo',
+    'brusselator': 'fs-brusselator',
+    'schnakenberg': 'fs-schnakenberg'
+  };
+
+  for (const [key, fsId] of Object.entries(modelIds)) {
+    const fsSrc = document.getElementById(fsId).textContent;
+    const prog = createProgram(vsSrc, fsSrc);
+    const model = MODELS[key];
+    const uNames = ['u_state', 'u_texel', 'u_dt', ...model.uniformNames];
+    simPrograms[key] = { program: prog, uniforms: getUniforms(prog, uNames) };
+  }
+
+  // Render program
+  const renderSrc = document.getElementById('fs-render').textContent;
+  const rProg = createProgram(vsSrc, renderSrc);
+  renderProgram = rProg;
+  renderUniforms = getUniforms(rProg, [
+    'u_state', 'u_colormap', 'u_invert', 'u_brightness', 'u_contrast',
+    'u_customColor1', 'u_customColor2', 'u_displayScale'
+  ]);
+
+  // Brush program
+  const brushSrc = document.getElementById('fs-brush').textContent;
+  const bProg = createProgram(vsSrc, brushSrc);
+  brushProgram = bProg;
+  brushUniforms = getUniforms(bProg, [
+    'u_state', 'u_brushPos', 'u_brushSize', 'u_tool', 'u_shape',
+    'u_softness', 'u_resolution', 'u_steadyState'
+  ]);
+}
+
+function createSimResources() {
+  simWidth = state.resolution;
+  simHeight = state.resolution;
+
+  // Delete old resources
+  for (let i = 0; i < 2; i++) {
+    if (textures[i]) gl.deleteTexture(textures[i]);
+    if (framebuffers[i]) gl.deleteFramebuffer(framebuffers[i]);
+  }
+
+  for (let i = 0; i < 2; i++) {
+    textures[i] = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, textures[i]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, simWidth, simHeight, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    updateTextureWrap(textures[i]);
+
+    framebuffers[i] = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[i]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textures[i], 0);
+
+    const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (status !== gl.FRAMEBUFFER_COMPLETE) {
+      console.error('Framebuffer not complete:', status);
+    }
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  currentSrc = 0;
+}
+
+function updateTextureWrap(tex) {
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  const mode = state.boundary === 'periodic' ? gl.REPEAT : gl.CLAMP_TO_EDGE;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode);
+}
+
+function loadModelDefaults() {
+  const model = MODELS[state.model];
+  state.params = {};
+  for (const p of model.params) {
+    state.params[p.key] = p.default;
+  }
+  state.dt = model.defaultDt;
+}
+
+function initSimulation(mode) {
+  const model = MODELS[state.model];
+  const w = simWidth, h = simHeight;
+  const data = new Float32Array(w * h * 4);
+
+  const ss = model.steadyState(state.params);
+
+  // Fill with steady state
+  for (let i = 0; i < w * h; i++) {
+    data[i * 4 + 0] = ss[0];
+    data[i * 4 + 1] = ss[1];
+    data[i * 4 + 2] = 0;
+    data[i * 4 + 3] = 1;
+  }
+
+  if (mode === 'seed') {
+    const cx = w / 2, cy = h / 2;
+    const r = Math.max(5, Math.floor(w / 40));
+
+    if (model.seedValues) {
+      // Deterministic seed
+      for (let y = cy - r; y <= cy + r; y++) {
+        for (let x = cx - r; x <= cx + r; x++) {
+          if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) {
+            const idx = (Math.floor(y) * w + Math.floor(x)) * 4;
+            if (idx >= 0 && idx < data.length - 3) {
+              data[idx + 0] = model.seedValues[0];
+              data[idx + 1] = model.seedValues[1];
+            }
+          }
+        }
+      }
+      // Add a few extra seeds for more interesting initial conditions
+      const offsets = [[-r*3, -r*2], [r*3, r*2], [-r*2, r*3], [r*2, -r*3]];
+      for (const [ox, oy] of offsets) {
+        const sx = cx + ox, sy = cy + oy;
+        const sr = r * 0.6;
+        for (let y = sy - sr; y <= sy + sr; y++) {
+          for (let x = sx - sr; x <= sx + sr; x++) {
+            if ((x - sx) * (x - sx) + (y - sy) * (y - sy) <= sr * sr) {
+              const idx = (Math.floor(y) * w + Math.floor(x)) * 4;
+              if (idx >= 0 && idx < data.length - 3) {
+                data[idx + 0] = model.seedValues[0];
+                data[idx + 1] = model.seedValues[1];
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Random perturbation from steady state
+      for (let i = 0; i < w * h; i++) {
+        const dx = (i % w) - cx;
+        const dy = Math.floor(i / w) - cy;
+        if (dx * dx + dy * dy < r * r * 16) {
+          data[i * 4 + 0] = ss[0] + (Math.random() - 0.5) * 0.1;
+          data[i * 4 + 1] = ss[1] + (Math.random() - 0.5) * 0.1;
+        }
+      }
+    }
+  } else if (mode === 'random') {
+    for (let i = 0; i < w * h; i++) {
+      data[i * 4 + 0] = ss[0] + (Math.random() - 0.5) * 0.5;
+      data[i * 4 + 1] = ss[1] + (Math.random() - 0.5) * 0.5;
+    }
+  }
+  // mode === 'clear': just steady state, no seed
+
+  // Upload to both textures
+  for (let i = 0; i < 2; i++) {
+    gl.bindTexture(gl.TEXTURE_2D, textures[i]);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.FLOAT, data);
+  }
+  currentSrc = 0;
+  state.iterations = 0;
+}
+
+// ============================================================
+// SIMULATION & RENDERING
+// ============================================================
+function setSimUniforms(prog, uniforms) {
+  const model = MODELS[state.model];
+  gl.uniform1i(uniforms.u_state, 0);
+  gl.uniform2f(uniforms.u_texel, 1.0 / simWidth, 1.0 / simHeight);
+  gl.uniform1f(uniforms.u_dt, state.dt);
+
+  for (let i = 0; i < model.params.length; i++) {
+    const p = model.params[i];
+    const uName = model.uniformNames[i];
+    gl.uniform1f(uniforms[uName], state.params[p.key]);
+  }
+}
+
+function simulationStep() {
+  const dest = 1 - currentSrc;
+  const sp = simPrograms[state.model];
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[dest]);
+  gl.viewport(0, 0, simWidth, simHeight);
+  gl.useProgram(sp.program);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[currentSrc]);
+  setSimUniforms(sp.program, sp.uniforms);
+
+  gl.bindVertexArray(quadVAO);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  currentSrc = dest;
+  state.iterations++;
+}
+
+function applyBrush(bx, by) {
+  const dest = 1 - currentSrc;
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[dest]);
+  gl.viewport(0, 0, simWidth, simHeight);
+  gl.useProgram(brushProgram);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[currentSrc]);
+
+  const model = MODELS[state.model];
+  const ss = model.steadyState(state.params);
+
+  gl.uniform1i(brushUniforms.u_state, 0);
+  gl.uniform2f(brushUniforms.u_brushPos, bx, by);
+  gl.uniform1f(brushUniforms.u_brushSize, state.brush.size);
+  gl.uniform1i(brushUniforms.u_tool, state.brush.tool);
+  gl.uniform1i(brushUniforms.u_shape, state.brush.shape);
+  gl.uniform1f(brushUniforms.u_softness, state.brush.softness);
+  gl.uniform2f(brushUniforms.u_resolution, simWidth, simHeight);
+  gl.uniform2f(brushUniforms.u_steadyState, ss[0], ss[1]);
+
+  gl.bindVertexArray(quadVAO);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  currentSrc = dest;
+}
+
+function interpolateBrush(x0, y0, x1, y1) {
+  const dist = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
+  const steps = Math.max(1, Math.ceil(dist / (state.brush.size * 0.5)));
+  for (let i = 0; i <= steps; i++) {
+    const t = steps === 0 ? 0 : i / steps;
+    const x = x0 + (x1 - x0) * t;
+    const y = y0 + (y1 - y0) * t;
+    applyBrush(x, y);
+  }
+}
+
+function render() {
+  // Resize canvas to container
+  const container = document.getElementById('canvas-container');
+  const dpr = window.devicePixelRatio || 1;
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+    canvas.width = cw * dpr;
+    canvas.height = ch * dpr;
+  }
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(renderProgram);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[currentSrc]);
+
+  gl.uniform1i(renderUniforms.u_state, 0);
+  gl.uniform1i(renderUniforms.u_colormap, state.colormap);
+  gl.uniform1i(renderUniforms.u_invert, state.invert ? 1 : 0);
+  gl.uniform1f(renderUniforms.u_brightness, state.brightness);
+  gl.uniform1f(renderUniforms.u_contrast, state.contrast);
+  gl.uniform3f(renderUniforms.u_customColor1, ...state.customColor1);
+  gl.uniform3f(renderUniforms.u_customColor2, ...state.customColor2);
+
+  // Compute display scale based on model
+  const model = MODELS[state.model];
+  let ds = model.displayScale;
+  if (state.model === 'brusselator') {
+    ds = 1.0 / Math.max(1, state.params.B / state.params.A);
+  } else if (state.model === 'schnakenberg') {
+    const ssu = state.params.a + state.params.b;
+    const ssv = state.params.b / (ssu * ssu);
+    ds = 1.0 / Math.max(0.5, ssv * 2);
+  }
+  gl.uniform1f(renderUniforms.u_displayScale, ds);
+
+  gl.bindVertexArray(quadVAO);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  // FPS
+  frameCount++;
+  if (now - lastFPSTime >= 1000) {
+    fps = frameCount;
+    frameCount = 0;
+    lastFPSTime = now;
+    document.getElementById('fpsInfo').textContent = fps + ' FPS';
+  }
+
+  if (state.playing || needsStep) {
+    // Brush (apply pending brush strokes)
+    if (brushActive) {
+      if (lastBrushX >= 0) {
+        interpolateBrush(lastBrushX, lastBrushY, brushX, brushY);
+      } else {
+        applyBrush(brushX, brushY);
+      }
+      lastBrushX = brushX;
+      lastBrushY = brushY;
+    }
+
+    // Simulation steps
+    for (let i = 0; i < state.stepsPerFrame; i++) {
+      simulationStep();
+    }
+    needsStep = false;
+
+    document.getElementById('iterInfo').textContent = 'Iter: ' + state.iterations;
+  } else if (brushActive) {
+    // Apply brush even when paused
+    if (lastBrushX >= 0) {
+      interpolateBrush(lastBrushX, lastBrushY, brushX, brushY);
+    } else {
+      applyBrush(brushX, brushY);
+    }
+    lastBrushX = brushX;
+    lastBrushY = brushY;
+  }
+
+  render();
+}
+
+// ============================================================
+// BRUSH INPUT
+// ============================================================
+function canvasToSim(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width * simWidth;
+  const y = (1.0 - (e.clientY - rect.top) / rect.height) * simHeight;
+  return [x, y];
+}
+
+function setupBrushListeners() {
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    brushActive = true;
+    [brushX, brushY] = canvasToSim(e);
+    lastBrushX = -1;
+    lastBrushY = -1;
+    applyBrush(brushX, brushY);
+    lastBrushX = brushX;
+    lastBrushY = brushY;
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    // Update cursor
+    const cursor = document.getElementById('brush-cursor');
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+    const displaySize = state.brush.size * 2 * (canvas.clientWidth / simWidth);
+    cursor.style.width = displaySize + 'px';
+    cursor.style.height = displaySize + 'px';
+    cursor.style.borderRadius = state.brush.shape === 0 ? '50%' : '0';
+
+    if (brushActive) {
+      [brushX, brushY] = canvasToSim(e);
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => { brushActive = false; lastBrushX = -1; });
+  canvas.addEventListener('mouseleave', () => {
+    brushActive = false; lastBrushX = -1;
+    document.getElementById('brush-cursor').style.display = 'none';
+  });
+  canvas.addEventListener('mouseenter', () => {
+    document.getElementById('brush-cursor').style.display = 'block';
+  });
+
+  // Touch support
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      brushActive = true;
+      const t = e.touches[0];
+      [brushX, brushY] = canvasToSim(t);
+      lastBrushX = -1;
+      applyBrush(brushX, brushY);
+      lastBrushX = brushX;
+      lastBrushY = brushY;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && brushActive) {
+      e.preventDefault();
+      const t = e.touches[0];
+      [brushX, brushY] = canvasToSim(t);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { brushActive = false; lastBrushX = -1; });
+}
+
+// ============================================================
+// UI SETUP
+// ============================================================
+function setupUI() {
+  // Setup brush listeners (canvas is now available)
+  setupBrushListeners();
+  // Sidebar toggle
+  document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  });
+
+  // Section collapse
+  document.querySelectorAll('.section-header').forEach(h => {
+    h.addEventListener('click', () => {
+      const target = document.getElementById(h.dataset.target);
+      if (target) {
+        h.classList.toggle('collapsed');
+        target.classList.toggle('hidden');
+      }
+    });
+  });
+
+  // Model select
+  document.getElementById('modelSelect').addEventListener('change', (e) => {
+    state.model = e.target.value;
+    loadModelDefaults();
+    buildParamSliders();
+    buildPresets();
+    updateDtSlider();
+    createSimResources();
+    initSimulation('seed');
+  });
+
+  // Resolution
+  document.getElementById('resolutionSelect').addEventListener('change', (e) => {
+    state.resolution = parseInt(e.target.value);
+    createSimResources();
+    initSimulation('seed');
+  });
+
+  // Steps per frame
+  const stepsSlider = document.getElementById('stepsSlider');
+  stepsSlider.addEventListener('input', () => {
+    state.stepsPerFrame = parseInt(stepsSlider.value);
+    document.getElementById('stepsVal').textContent = stepsSlider.value;
+  });
+
+  // dt slider
+  const dtSlider = document.getElementById('dtSlider');
+  dtSlider.addEventListener('input', () => {
+    state.dt = parseFloat(dtSlider.value);
+    document.getElementById('dtVal').textContent = state.dt.toFixed(3);
+  });
+
+  // Boundary toggle
+  document.getElementById('boundaryToggle').addEventListener('click', function() {
+    this.classList.toggle('on');
+    state.boundary = this.classList.contains('on') ? 'neumann' : 'periodic';
+    document.getElementById('boundaryLabel').textContent =
+      state.boundary === 'periodic' ? 'Periodic' : 'Neumann';
+    for (const tex of textures) updateTextureWrap(tex);
+  });
+
+  // Brush tools
+  document.querySelectorAll('[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.brush.tool = ['add', 'erase', 'repel'].indexOf(btn.dataset.tool);
+    });
+  });
+
+  document.getElementById('brushSizeSlider').addEventListener('input', function() {
+    state.brush.size = parseInt(this.value);
+    document.getElementById('brushSizeVal').textContent = this.value;
+  });
+
+  document.querySelectorAll('[data-shape]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-shape]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.brush.shape = btn.dataset.shape === 'circle' ? 0 : 1;
+    });
+  });
+
+  document.getElementById('brushSoftSlider').addEventListener('input', function() {
+    state.brush.softness = parseFloat(this.value);
+    document.getElementById('brushSoftVal').textContent = parseFloat(this.value).toFixed(2);
+  });
+
+  // Colormap
+  document.getElementById('colormapSelect').addEventListener('change', function() {
+    state.colormap = parseInt(this.value);
+    document.getElementById('customColorRow').style.display =
+      state.colormap === 7 ? 'flex' : 'none';
+  });
+
+  document.getElementById('customColor1').addEventListener('input', function() {
+    state.customColor1 = hexToRgb(this.value);
+  });
+  document.getElementById('customColor2').addEventListener('input', function() {
+    state.customColor2 = hexToRgb(this.value);
+  });
+
+  // Invert
+  document.getElementById('invertToggle').addEventListener('click', function() {
+    this.classList.toggle('on');
+    state.invert = this.classList.contains('on');
+  });
+
+  // Brightness & Contrast
+  document.getElementById('brightnessSlider').addEventListener('input', function() {
+    state.brightness = parseFloat(this.value);
+    document.getElementById('brightnessVal').textContent = state.brightness.toFixed(2);
+  });
+  document.getElementById('contrastSlider').addEventListener('input', function() {
+    state.contrast = parseFloat(this.value);
+    document.getElementById('contrastVal').textContent = state.contrast.toFixed(2);
+  });
+
+  // Bottom bar buttons
+  document.getElementById('playBtn').addEventListener('click', () => {
+    state.playing = !state.playing;
+    const btn = document.getElementById('playBtn');
+    btn.classList.toggle('play', state.playing);
+    btn.innerHTML = state.playing ? '&#9654; Play' : '&#9646;&#9646; Pause';
+  });
+
+  document.getElementById('stepBtn').addEventListener('click', () => {
+    needsStep = true;
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    initSimulation('seed');
+  });
+
+  document.getElementById('randomBtn').addEventListener('click', () => {
+    initSimulation('random');
+  });
+
+  // Export
+  document.getElementById('exportBtn').addEventListener('click', showExportDialog);
+
+  // Parameter map
+  document.getElementById('paramMapBtn').addEventListener('click', showParameterMap);
+
+  // Info
+  document.getElementById('infoBtn').addEventListener('click', () => {
+    document.getElementById('infoModal').classList.add('open');
+  });
+
+  // Close modals on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
+  });
+
+  // Build initial UI
+  buildParamSliders();
+  buildPresets();
+  updateDtSlider();
+}
+
+function buildParamSliders() {
+  const container = document.getElementById('paramSliders');
+  container.innerHTML = '';
+  const model = MODELS[state.model];
+
+  for (const p of model.params) {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    row.innerHTML = `
+      <div class="param-label"><span>${p.label}</span><span id="pval-${p.key}">${state.params[p.key].toFixed(4)}</span></div>
+      <input type="range" id="pslider-${p.key}" min="${p.min}" max="${p.max}" value="${state.params[p.key]}" step="${p.step}">
+    `;
+    container.appendChild(row);
+
+    const slider = row.querySelector('input');
+    slider.addEventListener('input', () => {
+      state.params[p.key] = parseFloat(slider.value);
+      document.getElementById(`pval-${p.key}`).textContent = state.params[p.key].toFixed(4);
+      state.activePreset = null;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    });
+  }
+}
+
+function buildPresets() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = '';
+  const model = MODELS[state.model];
+
+  for (const preset of model.presets) {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.textContent = preset.name;
+    btn.addEventListener('click', () => {
+      loadPreset(preset);
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    grid.appendChild(btn);
+  }
+}
+
+function loadPreset(preset) {
+  const model = MODELS[state.model];
+  for (const p of model.params) {
+    if (preset[p.key] !== undefined) {
+      state.params[p.key] = preset[p.key];
+      const slider = document.getElementById(`pslider-${p.key}`);
+      const label = document.getElementById(`pval-${p.key}`);
+      if (slider) slider.value = state.params[p.key];
+      if (label) label.textContent = state.params[p.key].toFixed(4);
+    }
+  }
+  state.activePreset = preset.name;
+  initSimulation('seed');
+}
+
+function updateDtSlider() {
+  const model = MODELS[state.model];
+  const slider = document.getElementById('dtSlider');
+  slider.value = state.dt;
+  document.getElementById('dtVal').textContent = state.dt.toFixed(3);
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return [r, g, b];
+}
+
+// ============================================================
+// PARAMETER MAP
+// ============================================================
+function showParameterMap() {
+  const modal = document.getElementById('paramMapModal');
+  modal.classList.add('open');
+  drawParameterMap();
+}
+
+function drawParameterMap() {
+  const canvas = document.getElementById('paramMapCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+
+  // f range: 0.0 - 0.08, k range: 0.03 - 0.07
+  const fMin = 0.0, fMax = 0.08;
+  const kMin = 0.03, kMax = 0.07;
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw approximate regions
+  const regions = [
+    { fRange: [0.01, 0.025], kRange: [0.04, 0.055], color: 'rgba(100,50,150,0.4)', label: 'Spirals' },
+    { fRange: [0.025, 0.04], kRange: [0.053, 0.063], color: 'rgba(50,100,180,0.4)', label: 'Maze/Worms' },
+    { fRange: [0.03, 0.045], kRange: [0.06, 0.068], color: 'rgba(50,180,100,0.4)', label: 'Spots' },
+    { fRange: [0.035, 0.045], kRange: [0.063, 0.067], color: 'rgba(180,180,50,0.4)', label: 'Mitosis' },
+    { fRange: [0.045, 0.065], kRange: [0.055, 0.065], color: 'rgba(180,100,50,0.4)', label: 'Coral' },
+    { fRange: [0.055, 0.07], kRange: [0.058, 0.064], color: 'rgba(180,50,80,0.4)', label: 'U-Skate' },
+    { fRange: [0.02, 0.03], kRange: [0.055, 0.063], color: 'rgba(80,80,180,0.4)', label: 'Pulsating' },
+  ];
+
+  for (const r of regions) {
+    const x1 = (r.fRange[0] - fMin) / (fMax - fMin) * w;
+    const x2 = (r.fRange[1] - fMin) / (fMax - fMin) * w;
+    const y1 = (1 - (r.kRange[1] - kMin) / (kMax - kMin)) * h;
+    const y2 = (1 - (r.kRange[0] - kMin) / (kMax - kMin)) * h;
+    ctx.fillStyle = r.color;
+    ctx.beginPath();
+    ctx.roundRect(x1, y1, x2 - x1, y2 - y1, 6);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(r.label, (x1 + x2) / 2, (y1 + y2) / 2 + 3);
+  }
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 0.5;
+  for (let f = 0; f <= 0.08; f += 0.01) {
+    const x = (f - fMin) / (fMax - fMin) * w;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let k = 0.03; k <= 0.07; k += 0.005) {
+    const y = (1 - (k - kMin) / (kMax - kMin)) * h;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = '#a0a0b0';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  for (let f = 0; f <= 0.08; f += 0.02) {
+    const x = (f - fMin) / (fMax - fMin) * w;
+    ctx.fillText(f.toFixed(2), x, h - 4);
+  }
+  ctx.textAlign = 'right';
+  for (let k = 0.03; k <= 0.07; k += 0.01) {
+    const y = (1 - (k - kMin) / (kMax - kMin)) * h;
+    ctx.fillText(k.toFixed(2), 34, y + 4);
+  }
+
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Feed rate (f)', w / 2, h - 16);
+  ctx.save();
+  ctx.translate(14, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Kill rate (k)', 0, 0);
+  ctx.restore();
+
+  // Plot presets
+  const presets = MODELS['gray-scott'].presets;
+  for (const p of presets) {
+    const x = (p.f - fMin) / (fMax - fMin) * w;
+    const y = (1 - (p.k - kMin) / (kMax - kMin)) * h;
+    ctx.fillStyle = '#00d2ff';
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.name, x + 8, y + 3);
+  }
+
+  // Current position crosshair
+  if (state.model === 'gray-scott') {
+    const cx = (state.params.f - fMin) / (fMax - fMin) * w;
+    const cy = (1 - (state.params.k - kMin) / (kMax - kMin)) * h;
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy);
+    ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10);
+    ctx.stroke();
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Click handler
+  canvas.onclick = (e) => {
+    if (state.model !== 'gray-scott') return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+    const f = fMin + mx * (fMax - fMin);
+    const k = kMin + (1 - my) * (kMax - kMin);
+
+    state.params.f = Math.max(fMin, Math.min(fMax, f));
+    state.params.k = Math.max(kMin, Math.min(kMax, k));
+
+    // Update sliders
+    const fSlider = document.getElementById('pslider-f');
+    const kSlider = document.getElementById('pslider-k');
+    if (fSlider) { fSlider.value = state.params.f; document.getElementById('pval-f').textContent = state.params.f.toFixed(4); }
+    if (kSlider) { kSlider.value = state.params.k; document.getElementById('pval-k').textContent = state.params.k.toFixed(4); }
+
+    state.activePreset = null;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+
+    initSimulation('seed');
+    drawParameterMap();
+  };
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function showExportDialog() {
+  const modal = document.getElementById('exportModal');
+  const options = document.getElementById('exportOptions');
+  const res = state.resolution;
+  const sizes = [
+    { label: `Current (${res}×${res})`, w: res, h: res },
+    { label: `2× (${res*2}×${res*2})`, w: res*2, h: res*2 },
+    { label: `4× (${res*4}×${res*4})`, w: res*4, h: res*4 }
+  ];
+
+  options.innerHTML = '';
+  for (const s of sizes) {
+    const div = document.createElement('div');
+    div.className = 'export-option';
+    div.textContent = s.label;
+    div.addEventListener('click', () => {
+      exportImage(s.w, s.h);
+      modal.classList.remove('open');
+    });
+    options.appendChild(div);
+  }
+  modal.classList.add('open');
+}
+
+function exportImage(w, h) {
+  // Create offscreen canvas
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = w;
+  offCanvas.height = h;
+  const offCtx = offCanvas.getContext('2d');
+
+  // Create temporary framebuffer and texture for rendering at export resolution
+  const exportTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, exportTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+  const exportFb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, exportFb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, exportTex, 0);
+
+  // Render simulation state with colormap to export framebuffer
+  gl.viewport(0, 0, w, h);
+  gl.useProgram(renderProgram);
+  gl.activeTexture(gl.TEXTURE0);
+
+  // Set the source texture to LINEAR for smooth upscaling
+  gl.bindTexture(gl.TEXTURE_2D, textures[currentSrc]);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  gl.uniform1i(renderUniforms.u_state, 0);
+  gl.uniform1i(renderUniforms.u_colormap, state.colormap);
+  gl.uniform1i(renderUniforms.u_invert, state.invert ? 1 : 0);
+  gl.uniform1f(renderUniforms.u_brightness, state.brightness);
+  gl.uniform1f(renderUniforms.u_contrast, state.contrast);
+  gl.uniform3f(renderUniforms.u_customColor1, ...state.customColor1);
+  gl.uniform3f(renderUniforms.u_customColor2, ...state.customColor2);
+
+  const model = MODELS[state.model];
+  let ds = model.displayScale;
+  if (state.model === 'brusselator') ds = 1.0 / Math.max(1, state.params.B / state.params.A);
+  else if (state.model === 'schnakenberg') {
+    const ssu = state.params.a + state.params.b;
+    const ssv = state.params.b / (ssu * ssu);
+    ds = 1.0 / Math.max(0.5, ssv * 2);
+  }
+  gl.uniform1f(renderUniforms.u_displayScale, ds);
+
+  gl.bindVertexArray(quadVAO);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // Read pixels
+  const pixels = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+  // Restore texture filter
+  gl.bindTexture(gl.TEXTURE_2D, textures[currentSrc]);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  // Cleanup
+  gl.deleteFramebuffer(exportFb);
+  gl.deleteTexture(exportTex);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  // Write to canvas (flip Y)
+  const imageData = offCtx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const srcIdx = ((h - 1 - y) * w + x) * 4;
+      const dstIdx = (y * w + x) * 4;
+      imageData.data[dstIdx] = pixels[srcIdx];
+      imageData.data[dstIdx + 1] = pixels[srcIdx + 1];
+      imageData.data[dstIdx + 2] = pixels[srcIdx + 2];
+      imageData.data[dstIdx + 3] = 255;
+    }
+  }
+  offCtx.putImageData(imageData, 0, 0);
+
+  // Download
+  offCanvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const preset = state.activePreset || 'custom';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.download = `turing-${state.model}-${preset}-${timestamp}.png`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+
+</script>
+</body>
+</html>
