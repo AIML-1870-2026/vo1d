@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Julia Set Explorer</title>
+<title>Fractal Explorer</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -64,6 +64,10 @@ input[type=number]{-moz-appearance:textfield}
 
 .c-readout{text-align:center;padding:6px 0 2px;color:var(--text-dim);font-size:12px}
 .c-readout b{color:var(--text-bright)}
+
+/* Fractal type selector */
+.fractal-select{width:100%;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text);border-radius:var(--radius-sm);padding:5px 8px;font-size:11px;outline:none;cursor:pointer;font-family:inherit}
+.fractal-select:focus{border-color:var(--accent)}
 
 /* Iteration */
 .iter-row{display:flex;align-items:center;gap:8px}
@@ -163,7 +167,7 @@ input[type=number]{-moz-appearance:textfield}
   <!-- Controls panel -->
   <div class="panel">
     <div class="panel-header">
-      <h1>Julia Set Explorer</h1>
+      <h1>Fractal Explorer</h1>
       <button class="help-btn" id="helpBtn" title="Help">?</button>
     </div>
     <div class="panel-scroll">
@@ -190,6 +194,10 @@ input[type=number]{-moz-appearance:textfield}
       <div class="section" id="secRender">
         <div class="section-title">Rendering</div>
         <div class="section-body">
+          <select class="fractal-select" id="fractalType">
+            <option value="0" selected>Julia Set</option>
+            <option value="1">Burning Ship</option>
+          </select>
           <div class="iter-row">
             <input type="range" id="iterSlider" min="50" max="1000" step="1" value="300">
             <span class="iter-val mono" id="iterVal">300</span>
@@ -274,16 +282,22 @@ input[type=number]{-moz-appearance:textfield}
 //  DATA
 // =====================================================================
 const PRESETS = [
-  { name: 'Frost',         re: -0.7,    im:  0.27015 },
-  { name: 'Dendrite',      re:  0,      im:  1       },
-  { name: 'Douady Rabbit', re: -0.123,  im:  0.745   },
-  { name: 'San Marco',     re: -0.75,   im:  0       },
-  { name: 'Siegel Disk',   re: -0.391,  im: -0.587   },
-  { name: 'Starfish',      re: -0.5,    im:  0.563   },
-  { name: 'Lightning',     re: -0.4,    im:  0.6     },
-  { name: 'Galaxies',      re:  0.285,  im:  0.01    },
-  { name: 'Dragon',        re: -0.8,    im:  0.156   },
-  { name: 'Spiral',        re:  0.355,  im:  0.355   },
+  // Julia sets (type 0)
+  { name: 'Frost',         re: -0.7,    im:  0.27015, type: 0 },
+  { name: 'Dendrite',      re:  0,      im:  1,       type: 0 },
+  { name: 'Douady Rabbit', re: -0.123,  im:  0.745,   type: 0 },
+  { name: 'San Marco',     re: -0.75,   im:  0,       type: 0 },
+  { name: 'Siegel Disk',   re: -0.391,  im: -0.587,   type: 0 },
+  { name: 'Starfish',      re: -0.5,    im:  0.563,   type: 0 },
+  { name: 'Lightning',     re: -0.4,    im:  0.6,     type: 0 },
+  { name: 'Galaxies',      re:  0.285,  im:  0.01,    type: 0 },
+  { name: 'Dragon',        re: -0.8,    im:  0.156,   type: 0 },
+  { name: 'Spiral',        re:  0.355,  im:  0.355,   type: 0 },
+  // Burning Ship (type 1)
+  { name: 'Armada',        re: -1.5,    im: -0.05,    type: 1 },
+  { name: 'Ember',         re: -0.2,    im: -0.75,    type: 1 },
+  { name: 'Wreckage',      re: -1.2,    im:  0.1,     type: 1 },
+  { name: 'Lighthouse',    re: -0.5,    im: -0.5,     type: 1 },
 ];
 
 // Inigo Quilez cos-based palette params: color = a + b*cos(2π(c*t+d))
@@ -309,6 +323,7 @@ const state = {
   paletteId: 0,
   activePreset: 0,
   useCustomPalette: false,
+  fractalType: 0, // 0 = Julia, 1 = Burning Ship
 };
 
 // =====================================================================
@@ -340,6 +355,7 @@ uniform int   u_maxIter;
 uniform vec3  u_pa, u_pb, u_pc, u_pd;
 uniform bool  u_useCustom;
 uniform sampler2D u_customTex;
+uniform int   u_fractalType; // 0 = Julia, 1 = Burning Ship
 
 out vec4 fragColor;
 
@@ -356,6 +372,10 @@ void main() {
   for (i = 0; i < 1000; i++) {
     if (i >= u_maxIter) break;
     if (dot(z, z) > 4.0) break;
+    if (u_fractalType == 1) {
+      // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
+      z = abs(z);
+    }
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
   }
 
@@ -404,7 +424,7 @@ if (gl) {
 
   // Cache uniform locations
   uLocs = {};
-  ['u_resolution','u_c','u_center','u_zoom','u_maxIter','u_pa','u_pb','u_pc','u_pd','u_useCustom','u_customTex'].forEach(name => {
+  ['u_resolution','u_c','u_center','u_zoom','u_maxIter','u_pa','u_pb','u_pc','u_pd','u_useCustom','u_customTex','u_fractalType'].forEach(name => {
     uLocs[name] = gl.getUniformLocation(program, name);
   });
 }
@@ -429,6 +449,7 @@ function render() {
   gl.uniform2f(uLocs.u_center, state.centerX, state.centerY);
   gl.uniform1f(uLocs.u_zoom, state.zoom);
   gl.uniform1i(uLocs.u_maxIter, state.maxIter);
+  gl.uniform1i(uLocs.u_fractalType, state.fractalType);
   gl.uniform3fv(uLocs.u_pa, pal.a);
   gl.uniform3fv(uLocs.u_pb, pal.b);
   gl.uniform3fv(uLocs.u_pc, pal.c);
@@ -449,10 +470,11 @@ let customPaletteTex = null;
 // =====================================================================
 //  THUMBNAIL RENDERER (offscreen framebuffer)
 // =====================================================================
-function renderThumbnail(targetCanvas, cRe, cIm, palIdx, size) {
+function renderThumbnail(targetCanvas, cRe, cIm, palIdx, size, fractalType) {
   if (!gl) return;
   const sz = size || 90;
   const pal = PALETTES[palIdx != null ? palIdx : state.paletteId];
+  const ft = fractalType != null ? fractalType : state.fractalType;
 
   // Create offscreen FBO + texture
   const fb = gl.createFramebuffer();
@@ -469,6 +491,7 @@ function renderThumbnail(targetCanvas, cRe, cIm, palIdx, size) {
   gl.uniform2f(uLocs.u_center, 0, 0);
   gl.uniform1f(uLocs.u_zoom, 1);
   gl.uniform1i(uLocs.u_maxIter, 150);
+  gl.uniform1i(uLocs.u_fractalType, ft);
   gl.uniform3fv(uLocs.u_pa, pal.a);
   gl.uniform3fv(uLocs.u_pb, pal.b);
   gl.uniform3fv(uLocs.u_pc, pal.c);
@@ -582,6 +605,8 @@ function buildPresets() {
       state.centerY = 0;
       state.zoom = 1;
       state.activePreset = i;
+      state.fractalType = p.type;
+      document.getElementById('fractalType').value = p.type;
       syncUI();
       render();
       presetCards.forEach((pc, j) => pc.card.classList.toggle('active', j === i));
@@ -591,7 +616,7 @@ function buildPresets() {
   // Render thumbnails after DOM settles
   requestAnimationFrame(() => {
     PRESETS.forEach((p, i) => {
-      renderThumbnail(presetCards[i].canvas, p.re, p.im, state.paletteId, 100);
+      renderThumbnail(presetCards[i].canvas, p.re, p.im, state.paletteId, 100, p.type);
     });
   });
 }
@@ -599,7 +624,7 @@ function buildPresets() {
 function refreshPresetThumbnails() {
   requestAnimationFrame(() => {
     PRESETS.forEach((p, i) => {
-      renderThumbnail(presetCards[i].canvas, p.re, p.im, state.paletteId, 100);
+      renderThumbnail(presetCards[i].canvas, p.re, p.im, state.paletteId, 100, p.type);
     });
   });
 }
@@ -630,6 +655,7 @@ function syncUI() {
   cReadout.textContent = formatC(state.cRe, state.cIm);
   iterSlider.value = state.maxIter;
   iterVal.textContent = state.maxIter;
+  document.getElementById('fractalType').value = state.fractalType;
   updateZoomDisplay();
 }
 
@@ -674,6 +700,12 @@ iterSlider.addEventListener('input', () => {
   state.maxIter = parseInt(iterSlider.value);
   iterVal.textContent = state.maxIter;
   render();
+});
+
+document.getElementById('fractalType').addEventListener('change', (e) => {
+  state.fractalType = parseInt(e.target.value);
+  render();
+  refreshPresetThumbnails();
 });
 
 // =====================================================================
@@ -1114,6 +1146,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
       gl.uniform2f(uLocs.u_center, state.centerX, state.centerY);
       gl.uniform1f(uLocs.u_zoom, state.zoom);
       gl.uniform1i(uLocs.u_maxIter, state.maxIter);
+      gl.uniform1i(uLocs.u_fractalType, state.fractalType);
       gl.uniform3fv(uLocs.u_pa, pal.a);
       gl.uniform3fv(uLocs.u_pb, pal.b);
       gl.uniform3fv(uLocs.u_pc, pal.c);
