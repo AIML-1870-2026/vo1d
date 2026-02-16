@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decision Neuron — Car Buying Probability Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;600;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header" data-animate="1">
+    <h1 class="header__title">Decision Neuron</h1>
+    <p class="header__tagline">Car Buying Probability Engine</p>
+  </header>
+
+  <main class="main-grid">
+    <!-- LEFT PANEL -->
+    <aside class="panel panel--left" data-animate="2">
+      <!-- Persona Selector -->
+      <section class="persona-section">
+        <h2 class="section-label">Select Your Persona</h2>
+        <div class="persona-selector" role="radiogroup" aria-label="Select your buyer persona">
+          <button class="persona-card" role="radio" aria-checked="false" data-persona="carGuy" tabindex="0">
+            <span class="persona-card__emoji">🔧</span>
+            <span class="persona-card__label">Car Guy</span>
+          </button>
+          <button class="persona-card" role="radio" aria-checked="true" data-persona="familyMan" tabindex="0">
+            <span class="persona-card__emoji">👨‍👩‍👧‍👦</span>
+            <span class="persona-card__label">Family Man</span>
+          </button>
+          <button class="persona-card" role="radio" aria-checked="false" data-persona="teenager" tabindex="0">
+            <span class="persona-card__emoji">🎓</span>
+            <span class="persona-card__label">Teenager</span>
+          </button>
+          <button class="persona-card" role="radio" aria-checked="false" data-persona="commuter" tabindex="0">
+            <span class="persona-card__emoji">💼</span>
+            <span class="persona-card__label">Commuter</span>
+          </button>
+          <button class="persona-card" role="radio" aria-checked="false" data-persona="adventurer" tabindex="0">
+            <span class="persona-card__emoji">🏔️</span>
+            <span class="persona-card__label">Adventurer</span>
+          </button>
+        </div>
+        <p class="persona-flavor" id="persona-flavor">Family first. Safety and space are non-negotiable.</p>
+      </section>
+
+      <!-- Persona Neuron Node -->
+      <section class="neuron-section" aria-hidden="true">
+        <div class="neuron-node" id="persona-neuron">
+          <span class="neuron-node__emoji" id="neuron-emoji">👨‍👩‍👧‍👦</span>
+          <div class="neuron-node__ring"></div>
+        </div>
+        <svg class="neuron-lines" viewBox="0 0 200 60" preserveAspectRatio="none">
+          <line class="neuron-line" data-neuron-line="reliability" x1="100" y1="2" x2="15" y2="58"/>
+          <line class="neuron-line" data-neuron-line="speed" x1="100" y1="2" x2="65" y2="58"/>
+          <line class="neuron-line" data-neuron-line="utility" x1="100" y1="2" x2="135" y2="58"/>
+          <line class="neuron-line" data-neuron-line="price" x1="100" y1="2" x2="185" y2="58"/>
+        </svg>
+      </section>
+
+      <!-- Factor Sliders -->
+      <section class="sliders-section">
+        <h2 class="section-label">Your Priorities</h2>
+
+        <div class="slider-group" data-factor="reliability">
+          <div class="slider-header">
+            <label class="slider-label" for="slider-reliability">Reliability</label>
+            <div class="slider-weight" aria-label="Persona weight for reliability">
+              <span class="slider-weight__bar"></span>
+            </div>
+            <span class="slider-value" id="val-reliability">50</span>
+          </div>
+          <input type="range" id="slider-reliability" class="factor-slider" min="0" max="100" value="50"
+            aria-label="Reliability importance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        </div>
+
+        <div class="slider-group" data-factor="speed">
+          <div class="slider-header">
+            <label class="slider-label" for="slider-speed">Speed</label>
+            <div class="slider-weight" aria-label="Persona weight for speed">
+              <span class="slider-weight__bar"></span>
+            </div>
+            <span class="slider-value" id="val-speed">50</span>
+          </div>
+          <input type="range" id="slider-speed" class="factor-slider" min="0" max="100" value="50"
+            aria-label="Speed importance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        </div>
+
+        <div class="slider-group" data-factor="utility">
+          <div class="slider-header">
+            <label class="slider-label" for="slider-utility">Utility</label>
+            <div class="slider-weight" aria-label="Persona weight for utility">
+              <span class="slider-weight__bar"></span>
+            </div>
+            <span class="slider-value" id="val-utility">50</span>
+          </div>
+          <input type="range" id="slider-utility" class="factor-slider" min="0" max="100" value="50"
+            aria-label="Utility importance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        </div>
+
+        <div class="slider-group" data-factor="price">
+          <div class="slider-header">
+            <label class="slider-label" for="slider-price">Price Sensitivity</label>
+            <div class="slider-weight" aria-label="Persona weight for price">
+              <span class="slider-weight__bar"></span>
+            </div>
+            <span class="slider-value" id="val-price">50</span>
+          </div>
+          <input type="range" id="slider-price" class="factor-slider" min="0" max="100" value="50"
+            aria-label="Price sensitivity" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+        </div>
+      </section>
+    </aside>
+
+    <!-- CENTER DISPLAY -->
+    <section class="panel panel--center" data-animate="3">
+      <!-- Neural Connection Lines -->
+      <svg class="neural-lines" aria-hidden="true" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--accent-primary)" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="var(--accent-primary)" stop-opacity="0.1"/>
+          </linearGradient>
+        </defs>
+        <!-- Factor input lines (from sliders) -->
+        <line class="neural-line" data-line="reliability" x1="0" y1="30%" x2="50%" y2="50%"/>
+        <line class="neural-line" data-line="speed" x1="0" y1="43%" x2="50%" y2="50%"/>
+        <line class="neural-line" data-line="utility" x1="0" y1="56%" x2="50%" y2="50%"/>
+        <line class="neural-line" data-line="price" x1="0" y1="69%" x2="50%" y2="50%"/>
+        <!-- Persona input line (from above) -->
+        <line class="neural-line neural-line--persona" id="neural-line-persona" x1="50%" y1="3%" x2="50%" y2="50%"/>
+      </svg>
+
+      <!-- Persona Input Node (top of center) -->
+      <div class="persona-input-node" id="persona-input-node" aria-hidden="true">
+        <span class="persona-input-node__emoji" id="persona-input-emoji">👨‍👩‍👧‍👦</span>
+        <span class="persona-input-node__label" id="persona-input-label">Family Man</span>
+      </div>
+
+      <!-- Car Showcase -->
+      <div class="car-showcase">
+        <div class="car-3d-container">
+          <div class="car-card">
+            <div class="car-card__front">
+              <div class="car-display" id="car-display"></div>
+            </div>
+            <div class="car-card__back">
+              <div class="car-card__stats" id="car-back-stats"></div>
+            </div>
+          </div>
+        </div>
+        <div class="car-info">
+          <span class="best-match-badge">Best Match</span>
+          <h2 class="car-name" id="car-name">—</h2>
+          <p class="car-meta" id="car-meta"></p>
+        </div>
+      </div>
+
+      <!-- Neutral state message -->
+      <p class="neutral-message" id="neutral-message" hidden>Adjust your preferences to find your perfect car.</p>
+    </section>
+
+    <!-- RIGHT PANEL -->
+    <aside class="panel panel--right" data-animate="4">
+      <!-- Buying Probability Gauge -->
+      <section class="gauge-section">
+        <h2 class="section-label">Buying Probability</h2>
+        <div class="gauge">
+          <svg class="gauge__svg" viewBox="0 0 200 200">
+            <circle class="gauge__track" cx="100" cy="100" r="85" />
+            <circle class="gauge__fill" id="gauge-fill" cx="100" cy="100" r="85" />
+          </svg>
+          <div class="gauge__value">
+            <span class="gauge__number" id="gauge-number">0</span>
+            <span class="gauge__percent">%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Radar Chart -->
+      <section class="radar-section">
+        <h2 class="section-label">Car Stats</h2>
+        <div class="radar-chart">
+          <svg class="radar__svg" viewBox="0 0 200 200">
+            <!-- Grid rings -->
+            <polygon class="radar__ring" points="100,15 185,100 100,185 15,100"/>
+            <polygon class="radar__ring" points="100,36.25 163.75,100 100,163.75 36.25,100"/>
+            <polygon class="radar__ring" points="100,57.5 142.5,100 100,142.5 57.5,100"/>
+            <polygon class="radar__ring" points="100,78.75 121.25,100 100,121.25 78.75,100"/>
+            <!-- Axis lines -->
+            <line class="radar__axis" x1="100" y1="15" x2="100" y2="185"/>
+            <line class="radar__axis" x1="15" y1="100" x2="185" y2="100"/>
+            <!-- Data polygon -->
+            <polygon class="radar__data" id="radar-data" points="100,100 100,100 100,100 100,100"/>
+            <!-- Labels -->
+            <text class="radar__label" x="100" y="8" text-anchor="middle">REL</text>
+            <text class="radar__label" x="195" y="104" text-anchor="start">SPD</text>
+            <text class="radar__label" x="100" y="198" text-anchor="middle">UTL</text>
+            <text class="radar__label" x="5" y="104" text-anchor="end">PRC</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- Top 3 Alternatives -->
+      <section class="alternatives-section">
+        <h2 class="section-label">Top Alternatives</h2>
+        <div class="alternatives-list" id="alternatives-list">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+
+      <!-- Factor Impact (Sensitivity Analysis) -->
+      <section class="sensitivity-section">
+        <h2 class="section-label">Factor Impact</h2>
+        <div class="sensitivity-list" id="sensitivity-list">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="footer" data-animate="5">
+    <p>Powered by <strong>Decision Neuron&trade;</strong></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
