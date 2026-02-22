@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChromaType — Interactive Text &amp; Color Accessibility Lab</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --panel-width: 320px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --glass-border: rgba(255,255,255,0.11);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: rgba(255,255,255,0.88);
+      background: #080810;
+    }
+
+    /* ── Ambient canvas ── */
+    #ambient-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+      opacity: 0.35;
+    }
+
+    /* ── App shell ── */
+    #app { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* ── Header ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 18px;
+      background: rgba(8,8,16,0.7);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0; z-index: 100;
+      gap: 10px; flex-wrap: wrap;
+    }
+
+    #logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.03em; display: flex; }
+    #logo span { display: inline-block; transition: color 0.1s; }
+
+    /* CB toggle */
+    #cb-toggle {
+      display: flex;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--glass-border);
+      border-radius: 100px; padding: 3px; gap: 2px;
+      position: relative;
+    }
+    #cb-indicator {
+      position: absolute; top: 3px; height: calc(100% - 6px);
+      background: rgba(255,255,255,0.16);
+      border-radius: 100px;
+      transition: left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+    .cb-btn {
+      background: none; border: none;
+      color: rgba(255,255,255,0.52);
+      padding: 5px 11px; border-radius: 100px;
+      cursor: pointer; font-size: 0.73rem; font-weight: 500;
+      position: relative; z-index: 1;
+      transition: color 0.18s; white-space: nowrap;
+    }
+    .cb-btn.active { color: rgba(255,255,255,0.95); }
+    .cb-btn:hover { color: rgba(255,255,255,0.78); }
+
+    /* ── Main ── */
+    #main { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+    /* ── Control panel ── */
+    #control-panel {
+      width: var(--panel-width); min-width: var(--panel-width);
+      padding: 10px; display: flex; flex-direction: column; gap: 8px;
+      overflow-y: auto; overflow-x: hidden;
+      border-right: 1px solid var(--glass-border);
+      background: rgba(8,8,16,0.38);
+      backdrop-filter: blur(14px);
+    }
+
+    /* ── Preview area ── */
+    #preview-area { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow-y: auto; min-height: 0; }
+
+    /* ── Footer ── */
+    #footer {
+      padding: 6px 18px;
+      background: rgba(8,8,16,0.7); backdrop-filter: blur(24px);
+      border-top: 1px solid var(--glass-border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.68rem; color: rgba(255,255,255,0.36);
+      gap: 10px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    #footer kbd {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px; padding: 1px 5px; font-size: 0.68rem;
+    }
+
+    /* ── Glass panel ── */
+    .panel {
+      background: rgba(255,255,255,0.065);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: var(--radius-lg); padding: 10px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.28);
+    }
+    .panel-title {
+      font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; color: rgba(255,255,255,0.38); margin-bottom: 8px;
+    }
+
+    /* ── RGB sliders ── */
+    .rgb-group { display: flex; flex-direction: column; gap: 5px; }
+    .slider-row { display: flex; align-items: center; gap: 6px; }
+
+    .ch-lbl { font-size: 0.68rem; font-weight: 700; width: 13px; text-align: center; flex-shrink: 0; }
+    .ch-lbl.r { color: #ff7575; }
+    .ch-lbl.g { color: #6bff9e; }
+    .ch-lbl.b { color: #7ab0ff; }
+
+    .rgb-slider-wrap { flex: 1; }
+    .rgb-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 22px;
+      border-radius: 11px; outline: none; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.14);
+      transition: box-shadow 0.18s;
+    }
+    .rgb-slider:hover { box-shadow: 0 0 0 2px rgba(255,255,255,0.18); }
+    .rgb-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(14,14,28,0.9);
+      border: 2px solid rgba(255,255,255,0.55);
+      cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    }
+    .rgb-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(14,14,28,0.9);
+      border: 2px solid rgba(255,255,255,0.55);
+      cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    }
+    .ch-val { font-size: 0.67rem; font-weight: 600; min-width: 26px; text-align: right; color: rgba(255,255,255,0.65); flex-shrink: 0; }
+
+    /* Hex + swatch */
+    .hex-swatch-row { display: flex; align-items: center; gap: 7px; margin-top: 6px; position: relative; }
+    .hex-input {
+      flex: 1; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.11); border-radius: 8px;
+      color: rgba(255,255,255,0.82); font-family: 'Courier New', monospace;
+      font-size: 0.78rem; padding: 4px 8px; outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .hex-input:focus { border-color: rgba(255,255,255,0.28); box-shadow: 0 0 0 2px rgba(255,255,255,0.07); }
+    .hex-input.invalid { border-color: rgba(255,80,80,0.6); }
+
+    .color-swatch {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.22);
+      cursor: pointer; flex-shrink: 0;
+      transition: transform 0.14s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative;
+    }
+    .color-swatch:hover { transform: scale(1.1); }
+    .color-swatch:focus-visible { outline: 2px solid rgba(255,255,255,0.7); outline-offset: 2px; }
+
+    /* Popover */
+    .color-popover {
+      display: none; position: absolute; z-index: 300;
+      top: calc(100% + 6px); right: 0;
+      background: rgba(14,14,28,0.97);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: var(--radius-md); padding: 12px;
+      min-width: 210px; box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+    }
+    .color-popover.open { display: block; }
+    .pop-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+    .pop-row:last-child { margin-bottom: 0; }
+    .pop-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); min-width: 28px; }
+    .pop-val { font-family: 'Courier New', monospace; font-size: 0.76rem; color: rgba(255,255,255,0.82); flex: 1; }
+    .copy-btn {
+      background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 5px; color: rgba(255,255,255,0.65);
+      cursor: pointer; font-size: 0.62rem; padding: 2px 7px;
+      transition: background 0.14s, color 0.14s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .copy-btn.copied { background: rgba(100,240,140,0.18); color: #6bf09e; border-color: rgba(100,240,140,0.3); }
+
+    /* ── Typography controls ── */
+    .typo-grid { display: flex; flex-direction: column; gap: 6px; }
+    .typo-row { display: flex; align-items: center; gap: 7px; }
+    .typo-lbl { font-size: 0.66rem; color: rgba(255,255,255,0.46); min-width: 88px; flex-shrink: 0; }
+    .typo-slider {
+      -webkit-appearance: none; appearance: none;
+      flex: 1; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.14); outline: none; cursor: pointer;
+    }
+    .typo-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px; height: 15px; border-radius: 50%;
+      background: rgba(255,255,255,0.82); cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    .typo-slider::-moz-range-thumb {
+      width: 15px; height: 15px; border-radius: 50%;
+      background: rgba(255,255,255,0.82); cursor: pointer; border: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    .typo-val { font-size: 0.66rem; color: rgba(255,255,255,0.56); min-width: 34px; text-align: right; }
+    .typo-select {
+      flex: 1; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.11); border-radius: 8px;
+      color: rgba(255,255,255,0.82); font-size: 0.76rem; padding: 5px 7px;
+      outline: none; cursor: pointer;
+    }
+    .typo-select option { background: #12121e; }
+    .seg-ctrl {
+      flex: 1; display: flex;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 8px; overflow: hidden;
+    }
+    .seg-btn {
+      flex: 1; background: none; border: none; border-right: 1px solid rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.5); font-size: 0.7rem; padding: 5px 2px;
+      cursor: pointer; transition: background 0.14s, color 0.14s;
+    }
+    .seg-btn:last-child { border-right: none; }
+    .seg-btn.active { background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.92); }
+    .font-size-wrap { display: flex; align-items: center; gap: 5px; flex: 1; }
+    .font-size-num {
+      width: 44px; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.11); border-radius: 6px;
+      color: rgba(255,255,255,0.82); font-size: 0.76rem; padding: 4px 5px;
+      text-align: center; outline: none;
+    }
+
+    /* ── Preview wrapper ── */
+    #preview-outer { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+    #preview-echo {
+      position: absolute; top: 8px; left: 8px; right: -8px; bottom: -8px;
+      pointer-events: none; z-index: 0;
+      filter: blur(20px); opacity: 0.1;
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      word-break: break-word; white-space: pre-wrap;
+      overflow: hidden;
+    }
+
+    #preview-wrapper {
+      position: relative; z-index: 1;
+      border-radius: var(--radius-lg); overflow: hidden;
+      flex: 1; display: flex; flex-direction: column;
+    }
+
+    #preview-text {
+      flex: 1; min-height: 80px; padding: 14px 16px;
+      outline: none; word-break: break-word; white-space: pre-wrap;
+      border-radius: var(--radius-lg);
+      border: 1px solid transparent;
+      position: relative; z-index: 1;
+      cursor: text;
+    }
+    #preview-text[data-placeholder]:empty::before {
+      content: attr(data-placeholder);
+      opacity: 0.45;
+    }
+
+    #preview-resize {
+      height: 7px; cursor: ns-resize;
+      background: rgba(255,255,255,0.05);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; z-index: 2;
+    }
+    #preview-resize::after {
+      content: ''; width: 28px; height: 3px;
+      background: rgba(255,255,255,0.2); border-radius: 2px;
+    }
+
+    /* ── CB filter wrapper ── */
+    #cb-filter-wrapper { position: relative; border-radius: var(--radius-lg); flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+    /* ── Metrics bar ── */
+    #metrics-bar {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+      flex-shrink: 0;
+    }
+    .metric-cell {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.085);
+      border-radius: var(--radius-md); padding: 8px;
+      text-align: center; min-width: 0;
+    }
+    .metric-title {
+      font-size: 0.57rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.36); margin-bottom: 5px;
+    }
+
+    #contrast-ratio {
+      font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em;
+      color: rgba(255,255,255,0.9); line-height: 1; margin-bottom: 5px;
+    }
+    .wcag-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+    .badge {
+      font-size: 0.58rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 100px; transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .badge.pass { background: rgba(90,220,120,0.18); color: #6beea0; border: 1px solid rgba(90,220,120,0.28); }
+    .badge.fail { background: rgba(255,80,80,0.1); color: rgba(255,120,120,0.65); border: 1px solid rgba(255,80,80,0.18); }
+
+    .lum-pair { display: flex; justify-content: space-around; margin-bottom: 5px; }
+    .lum-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .lum-swatch { width: 15px; height: 15px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); }
+    .lum-val { font-size: 0.63rem; font-family: monospace; color: rgba(255,255,255,0.72); }
+    .lum-lbl { font-size: 0.53rem; color: rgba(255,255,255,0.35); }
+    #lum-bar-wrap { position: relative; height: 6px; background: linear-gradient(to right, #000, #fff); border-radius: 3px; margin-top: 2px; }
+    .lum-pip {
+      position: absolute; top: -3px; width: 12px; height: 12px;
+      border-radius: 50%; transform: translateX(-50%);
+      border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+
+    #gauge-canvas { display: block; margin: 0 auto; }
+
+    /* ── CB simulation strip ── */
+    #cb-sim-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .cb-mini { border-radius: var(--radius-md); overflow: hidden; border: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
+    .cb-mini-preview { padding: 7px; font-size: 0.65rem; min-height: 44px; word-break: break-word; line-height: 1.3; }
+    .cb-mini-label { font-size: 0.55rem; text-align: center; padding: 3px; background: rgba(0,0,0,0.35); color: rgba(255,255,255,0.45); }
+
+    /* ── Mini metrics (panel) ── */
+    .mini-metrics { display: flex; flex-direction: column; gap: 4px; }
+    .mm-row { display: flex; justify-content: space-between; font-size: 0.68rem; }
+    .mm-lbl { color: rgba(255,255,255,0.42); }
+    .mm-val { font-weight: 600; color: rgba(255,255,255,0.82); font-family: monospace; }
+
+    /* ── Action buttons ── */
+    .actions-group { display: flex; flex-direction: column; gap: 4px; }
+    .action-btn {
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; color: rgba(255,255,255,0.7); cursor: pointer;
+      font-size: 0.71rem; padding: 5px 9px; transition: background 0.14s, color 0.14s;
+      width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center;
+    }
+    .action-btn:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.95); }
+    .action-btn kbd { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.14); border-radius: 4px; padding: 1px 5px; font-size: 0.65rem; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 22px; left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: rgba(18,18,34,0.96); backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 11px;
+      padding: 11px 18px; font-size: 0.79rem; color: rgba(255,255,255,0.82);
+      z-index: 1000; transition: transform 0.28s cubic-bezier(.4,0,.2,1), opacity 0.28s;
+      opacity: 0; pointer-events: none; white-space: nowrap;
+    }
+    #toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      #main { flex-direction: column; }
+      #control-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--glass-border); }
+      #metrics-bar { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      #cb-sim-strip { grid-template-columns: repeat(2, 1fr); }
+      #metrics-bar { grid-template-columns: 1fr; }
+      .cb-btn { padding: 5px 8px; font-size: 0.68rem; }
+      #logo { font-size: 1.15rem; }
+    }
+
+    /* SVG filter holder */
+    .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+<!-- Ambient background -->
+<canvas id="ambient-canvas" aria-hidden="true"></canvas>
+
+<!--
+  Color blindness simulation matrices.
+  Protanopia & Deuteranopia: Viénot, Brettel & Mollon (1999)
+    "Digital video colourmaps for checking the legibility of displays by dichromats"
+  Tritanopia: Brettel, Viénot & Mollon (1997)
+    "Computerized simulation of color appearance for dichromats"
+  Achromatopsia: ITU-R BT.709 luminance coefficients
+-->
+<svg class="svg-defs" aria-hidden="true">
+  <defs>
+    <filter id="f-protanopia">
+      <feColorMatrix type="matrix" values="
+        0.567  0.433  0      0  0
+        0.558  0.442  0      0  0
+        0      0.242  0.758  0  0
+        0      0      0      1  0"/>
+    </filter>
+    <filter id="f-deuteranopia">
+      <feColorMatrix type="matrix" values="
+        0.625  0.375  0      0  0
+        0.700  0.300  0      0  0
+        0      0.300  0.700  0  0
+        0      0      0      1  0"/>
+    </filter>
+    <filter id="f-tritanopia">
+      <feColorMatrix type="matrix" values="
+        0.950  0.050  0      0  0
+        0      0.433  0.567  0  0
+        0      0.475  0.525  0  0
+        0      0      0      1  0"/>
+    </filter>
+    <filter id="f-achromatopsia">
+      <feColorMatrix type="matrix" values="
+        0.2126  0.7152  0.0722  0  0
+        0.2126  0.7152  0.0722  0  0
+        0.2126  0.7152  0.0722  0  0
+        0       0       0       1  0"/>
+    </filter>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="header">
+    <div id="logo" aria-label="ChromaType"></div>
+
+    <div id="cb-toggle" role="radiogroup" aria-label="Color blindness simulation mode">
+      <div id="cb-indicator" aria-hidden="true"></div>
+      <button class="cb-btn active" data-mode="normal" aria-checked="true" role="radio">Normal</button>
+      <button class="cb-btn" data-mode="protanopia" aria-checked="false" role="radio">Protanopia</button>
+      <button class="cb-btn" data-mode="deuteranopia" aria-checked="false" role="radio">Deuteranopia</button>
+      <button class="cb-btn" data-mode="tritanopia" aria-checked="false" role="radio">Tritanopia</button>
+      <button class="cb-btn" data-mode="achromatopsia" aria-checked="false" role="radio">Achromatopsia</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main id="main">
+
+    <!-- CONTROL PANEL -->
+    <aside id="control-panel">
+
+      <!-- Background color -->
+      <div class="panel">
+        <div class="panel-title">Background</div>
+        <div class="rgb-group" id="bg-sliders"></div>
+        <div class="hex-swatch-row">
+          <input class="hex-input" id="bg-hex" type="text" maxlength="7" spellcheck="false" aria-label="Background hex color">
+          <div class="color-swatch" id="bg-swatch" tabindex="0" role="button" aria-label="Background color — click for formats">
+            <div class="color-popover" id="bg-popover"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text color -->
+      <div class="panel">
+        <div class="panel-title">Text Color</div>
+        <div class="rgb-group" id="text-sliders"></div>
+        <div class="hex-swatch-row">
+          <input class="hex-input" id="text-hex" type="text" maxlength="7" spellcheck="false" aria-label="Text hex color">
+          <div class="color-swatch" id="text-swatch" tabindex="0" role="button" aria-label="Text color — click for formats">
+            <div class="color-popover" id="text-popover"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typography -->
+      <div class="panel">
+        <div class="panel-title">Typography</div>
+        <div class="typo-grid">
+
+          <div class="typo-row">
+            <span class="typo-lbl">Font Size</span>
+            <div class="font-size-wrap">
+              <input class="typo-slider" id="font-size-slider" type="range" min="8" max="120" step="1" value="32"
+                     aria-label="Font size" aria-valuemin="8" aria-valuemax="120" aria-valuenow="32">
+              <input class="font-size-num" id="font-size-num" type="number" min="8" max="120" value="32" aria-label="Font size in pixels">
+            </div>
+          </div>
+
+          <div class="typo-row">
+            <span class="typo-lbl">Font Family</span>
+            <select class="typo-select" id="font-family" aria-label="Font family">
+              <option value="system-ui,-apple-system,sans-serif">System Sans</option>
+              <option value="Georgia,'Times New Roman',serif">System Serif</option>
+              <option value="'Courier New',Courier,monospace">System Mono</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Courier New',monospace">Courier New</option>
+              <option value="Verdana,Geneva,sans-serif">Verdana</option>
+            </select>
+          </div>
+
+          <div class="typo-row">
+            <span class="typo-lbl">Font Weight</span>
+            <div class="seg-ctrl" role="group" aria-label="Font weight">
+              <button class="seg-btn" data-weight="300">Light</button>
+              <button class="seg-btn active" data-weight="400">Regular</button>
+              <button class="seg-btn" data-weight="700">Bold</button>
+            </div>
+          </div>
+
+          <div class="typo-row">
+            <span class="typo-lbl">Line Height</span>
+            <input class="typo-slider" id="line-height-slider" type="range" min="1.0" max="2.5" step="0.1" value="1.5"
+                   aria-label="Line height" aria-valuemin="1.0" aria-valuemax="2.5" aria-valuenow="1.5">
+            <span class="typo-val" id="lh-val">1.5</span>
+          </div>
+
+          <div class="typo-row">
+            <span class="typo-lbl">Letter Spacing</span>
+            <input class="typo-slider" id="ls-slider" type="range" min="-2" max="10" step="0.5" value="0"
+                   aria-label="Letter spacing" aria-valuemin="-2" aria-valuemax="10" aria-valuenow="0">
+            <span class="typo-val" id="ls-val">0px</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Metrics readout -->
+      <div class="panel">
+        <div class="panel-title">Metrics</div>
+        <div class="mini-metrics">
+          <div class="mm-row"><span class="mm-lbl">Contrast Ratio</span><span class="mm-val" id="mm-contrast">—</span></div>
+          <div class="mm-row"><span class="mm-lbl">BG Luminance</span><span class="mm-val" id="mm-bg-lum">—</span></div>
+          <div class="mm-row"><span class="mm-lbl">Text Luminance</span><span class="mm-val" id="mm-text-lum">—</span></div>
+          <div class="mm-row"><span class="mm-lbl">AA Normal</span><span class="mm-val" id="mm-aa">—</span></div>
+          <div class="mm-row"><span class="mm-lbl">AAA Normal</span><span class="mm-val" id="mm-aaa">—</span></div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="panel">
+        <div class="panel-title">Actions</div>
+        <div class="actions-group">
+          <button class="action-btn" id="btn-swap">⇅ Swap Colors<kbd>S</kbd></button>
+          <button class="action-btn" id="btn-reset">↺ Reset Defaults<kbd>R</kbd></button>
+          <button class="action-btn" id="btn-suggest">✦ Suggest AAA Pair</button>
+          <button class="action-btn" id="btn-export">{ } Export CSS</button>
+          <button class="action-btn" id="btn-url">⬡ Copy Shareable Link</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- PREVIEW AREA -->
+    <section id="preview-area">
+
+      <!-- Preview with CB filter -->
+      <div id="cb-filter-wrapper">
+        <div id="preview-outer">
+          <div id="preview-echo" aria-hidden="true"></div>
+          <div id="preview-wrapper">
+            <div id="preview-text"
+                 contenteditable="true"
+                 role="textbox"
+                 aria-multiline="true"
+                 aria-label="Text preview area"
+                 data-placeholder="The quick brown fox jumps over the lazy dog. 0123456789 — AaBbCcDdEeFf"
+            >The quick brown fox jumps over the lazy dog. 0123456789 — AaBbCcDdEeFf</div>
+            <div id="preview-resize" aria-hidden="true" title="Drag to resize"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics bar -->
+      <div id="metrics-bar" role="region" aria-live="polite" aria-label="Accessibility metrics">
+
+        <div class="metric-cell">
+          <div class="metric-title">Contrast Ratio</div>
+          <div id="contrast-ratio" aria-label="Contrast ratio">—</div>
+          <div class="wcag-badges">
+            <span class="badge" id="badge-aa">AA</span>
+            <span class="badge" id="badge-aa-lg">AA Large</span>
+            <span class="badge" id="badge-aaa">AAA</span>
+            <span class="badge" id="badge-aaa-lg">AAA Large</span>
+          </div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-title">Relative Luminance</div>
+          <div class="lum-pair">
+            <div class="lum-item">
+              <div class="lum-swatch" id="lum-bg-sw"></div>
+              <div class="lum-val" id="lum-bg-val">—</div>
+              <div class="lum-lbl">BG</div>
+            </div>
+            <div class="lum-item">
+              <div class="lum-swatch" id="lum-text-sw"></div>
+              <div class="lum-val" id="lum-text-val">—</div>
+              <div class="lum-lbl">Text</div>
+            </div>
+          </div>
+          <div id="lum-bar-wrap">
+            <div class="lum-pip" id="pip-bg"></div>
+            <div class="lum-pip" id="pip-text"></div>
+          </div>
+        </div>
+
+        <div class="metric-cell">
+          <div class="metric-title">Contrast Quality</div>
+          <canvas id="gauge-canvas" width="130" height="72" aria-label="Contrast quality radial gauge"></canvas>
+        </div>
+
+      </div>
+
+      <!-- CB simulation strip (always visible) -->
+      <div class="panel">
+        <div class="panel-title">Color Blindness Simulation</div>
+        <div id="cb-sim-strip">
+          <div class="cb-mini">
+            <div class="cb-mini-preview" id="cb-p" style="filter:url(#f-protanopia)"></div>
+            <div class="cb-mini-label">Protanopia</div>
+          </div>
+          <div class="cb-mini">
+            <div class="cb-mini-preview" id="cb-d" style="filter:url(#f-deuteranopia)"></div>
+            <div class="cb-mini-label">Deuteranopia</div>
+          </div>
+          <div class="cb-mini">
+            <div class="cb-mini-preview" id="cb-t" style="filter:url(#f-tritanopia)"></div>
+            <div class="cb-mini-label">Tritanopia</div>
+          </div>
+          <div class="cb-mini">
+            <div class="cb-mini-preview" id="cb-a" style="filter:url(#f-achromatopsia)"></div>
+            <div class="cb-mini-label">Achromatopsia</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer id="footer">
+    <span>WCAG 2.2 · AA ≥ 4.5:1 normal / ≥ 3:1 large · AAA ≥ 7:1 normal / ≥ 4.5:1 large</span>
+    <span><kbd>S</kbd> Swap &nbsp; <kbd>R</kbd> Reset &nbsp; <kbd>1–5</kbd> CB Mode</span>
+    <span>ChromaType — Color Accessibility Lab</span>
+  </footer>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const DEFAULT_STATE = {
+  bg:   { r: 15, g: 15, b: 26 },
+  text: { r: 224, g: 224, b: 255 },
+  fontSize: 32,
+  fontFamily: 'system-ui,-apple-system,sans-serif',
+  fontWeight: 400,
+  lineHeight: 1.5,
+  letterSpacing: 0,
+  cbMode: 'normal',
+};
+
+const S = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+// ═══════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════
+function toHex(r, g, b) {
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function hexToRgb(hex) {
+  hex = hex.trim().replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const n = parseInt(hex, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      default: h = ((r - g) / d + 4) / 6;
+    }
+  }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function srgbToLinear(c8) {
+  const c = c8 / 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance(r, g, b) {
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+}
+
+function contrastRatio(c1, c2) {
+  const L1 = relativeLuminance(c1.r, c1.g, c1.b);
+  const L2 = relativeLuminance(c2.r, c2.g, c2.b);
+  const lighter = Math.max(L1, L2), darker = Math.min(L1, L2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+let toastTimer;
+function showToast(msg, ms = 3200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('visible'), ms);
+}
+
+function copyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else { fallbackCopy(text); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  Object.assign(ta.style, { position: 'fixed', opacity: 0 });
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); document.body.removeChild(ta);
+}
+
+function $id(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════
+// LOGO HUE ANIMATION
+// ═══════════════════════════════════════════════
+const logoEl = $id('logo');
+logoEl.innerHTML = 'ChromaType'.split('').map((c, i) =>
+  `<span data-i="${i}">${c}</span>`
+).join('');
+let logoHue = 0;
+(function animateLogo() {
+  logoEl.querySelectorAll('span').forEach((s, i) => {
+    s.style.color = `hsl(${(logoHue + i * 28) % 360}, 72%, 72%)`;
+  });
+  logoHue = (logoHue + 0.35) % 360;
+  requestAnimationFrame(animateLogo);
+})();
+
+// ═══════════════════════════════════════════════
+// AMBIENT BACKGROUND CANVAS
+// ═══════════════════════════════════════════════
+const ambCanvas = $id('ambient-canvas');
+const ambCtx = ambCanvas.getContext('2d');
+let ambTime = 0;
+
+const BLOBS = [
+  { ox: 0.2, oy: 0.25, sp: 0.00028, ph: 0,   w: [1, 0, 0] },
+  { ox: 0.75, oy: 0.6, sp: 0.00038, ph: 2.1, w: [0, 1, 0] },
+  { ox: 0.5, oy: 0.82, sp: 0.00032, ph: 4.2, w: [0, 0, 1] },
+  { ox: 0.3, oy: 0.5, sp: 0.00024, ph: 1.1, w: [0.5, 0.5, 0] },
+];
+
+function resizeAmbient() {
+  ambCanvas.width = window.innerWidth;
+  ambCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeAmbient);
+resizeAmbient();
+
+(function renderAmbient() {
+  const W = ambCanvas.width, H = ambCanvas.height;
+  ambCtx.clearRect(0, 0, W, H);
+  const br = S.bg.r, bg_ = S.bg.g, bb = S.bg.b;
+  const tr = S.text.r, tg = S.text.g, tb = S.text.b;
+  BLOBS.forEach(blob => {
+    const t = ambTime;
+    const x = (blob.ox + Math.sin(t * blob.sp * 1000 + blob.ph) * 0.14) * W;
+    const y = (blob.oy + Math.cos(t * blob.sp * 800 + blob.ph) * 0.11) * H;
+    const [wr, wg, wb] = blob.w;
+    const cr = Math.round(br * wr + tr * (1 - wr));
+    const cg = Math.round(bg_ * wg + tg * (1 - wg));
+    const cb = Math.round(bb * wb + tb * (1 - wb));
+    const rad = W * 0.38;
+    const g = ambCtx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(${cr},${cg},${cb},0.5)`);
+    g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+    ambCtx.fillStyle = g;
+    ambCtx.fillRect(0, 0, W, H);
+  });
+  ambTime++;
+  requestAnimationFrame(renderAmbient);
+})();
+
+// ═══════════════════════════════════════════════
+// BUILD RGB SLIDERS
+// ═══════════════════════════════════════════════
+function buildRgbSliders(containerId, key) {
+  const container = $id(containerId);
+  ['r', 'g', 'b'].forEach(ch => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+
+    const lbl = document.createElement('span');
+    lbl.className = `ch-lbl ${ch}`;
+    lbl.textContent = ch.toUpperCase();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'rgb-slider-wrap';
+
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = 0; slider.max = 255; slider.step = 1;
+    slider.value = S[key][ch];
+    slider.className = 'rgb-slider';
+    slider.id = `${key}-${ch}`;
+    slider.setAttribute('aria-label', `${key === 'bg' ? 'Background' : 'Text'} ${ch.toUpperCase()} channel`);
+    slider.setAttribute('aria-valuemin', '0');
+    slider.setAttribute('aria-valuemax', '255');
+    slider.setAttribute('aria-valuenow', String(S[key][ch]));
+
+    const valEl = document.createElement('span');
+    valEl.className = 'ch-val';
+    valEl.id = `${key}-${ch}-val`;
+    valEl.textContent = S[key][ch];
+
+    wrap.appendChild(slider);
+    row.appendChild(lbl); row.appendChild(wrap); row.appendChild(valEl);
+    container.appendChild(row);
+
+    slider.addEventListener('input', () => {
+      S[key][ch] = parseInt(slider.value);
+      valEl.textContent = slider.value;
+      slider.setAttribute('aria-valuenow', slider.value);
+      onColorChange(key);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SLIDER TRACK GRADIENTS
+// ═══════════════════════════════════════════════
+function updateSliderTracks() {
+  ['bg', 'text'].forEach(key => {
+    const { r, g, b } = S[key];
+    const entries = { r: [[0, g, b], [255, g, b]], g: [[r, 0, b], [r, 255, b]], b: [[r, g, 0], [r, g, 255]] };
+    Object.entries(entries).forEach(([ch, [from, to]]) => {
+      const slider = $id(`${key}-${ch}`);
+      if (slider) slider.style.background = `linear-gradient(to right, rgb(${from.join(',')}), rgb(${to.join(',')}))`;
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// HEX INPUT & SWATCH
+// ═══════════════════════════════════════════════
+function syncHexAndSwatch(key) {
+  const { r, g, b } = S[key];
+  const hex = toHex(r, g, b);
+  const inp = $id(`${key}-hex`);
+  if (document.activeElement !== inp) inp.value = hex;
+  $id(`${key}-swatch`).style.backgroundColor = hex;
+}
+
+function setupHexInput(key) {
+  const inp = $id(`${key}-hex`);
+  let debounce;
+  const apply = () => {
+    const parsed = hexToRgb(inp.value);
+    if (parsed) {
+      inp.classList.remove('invalid');
+      S[key] = parsed;
+      syncSliders(key);
+      onColorChange(key);
+    } else {
+      inp.classList.add('invalid');
+    }
+  };
+  const applyOrRevert = () => {
+    const parsed = hexToRgb(inp.value);
+    if (!parsed) { inp.classList.remove('invalid'); syncHexAndSwatch(key); }
+    else apply();
+  };
+  inp.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(apply, 150); });
+  inp.addEventListener('blur', applyOrRevert);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyOrRevert(); } });
+}
+
+function syncSliders(key) {
+  ['r', 'g', 'b'].forEach(ch => {
+    const s = $id(`${key}-${ch}`);
+    const v = $id(`${key}-${ch}-val`);
+    if (s) { s.value = S[key][ch]; s.setAttribute('aria-valuenow', S[key][ch]); }
+    if (v) v.textContent = S[key][ch];
+  });
+}
+
+// ═══════════════════════════════════════════════
+// COLOR SWATCH POPOVER
+// ═══════════════════════════════════════════════
+function setupSwatch(key) {
+  const swatch = $id(`${key}-swatch`);
+  const popover = $id(`${key}-popover`);
+
+  const build = () => {
+    const { r, g, b } = S[key];
+    const hsl = rgbToHsl(r, g, b);
+    const formats = [
+      { lbl: 'HEX', val: toHex(r, g, b) },
+      { lbl: 'RGB', val: `rgb(${r}, ${g}, ${b})` },
+      { lbl: 'HSL', val: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` },
+    ];
+    popover.innerHTML = formats.map(f => `
+      <div class="pop-row">
+        <span class="pop-lbl">${f.lbl}</span>
+        <span class="pop-val">${f.val}</span>
+        <button class="copy-btn" data-v="${f.val}">Copy</button>
+      </div>
+    `).join('');
+    popover.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        copyText(btn.dataset.v);
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  };
+
+  const open = e => {
+    e.stopPropagation();
+    document.querySelectorAll('.color-popover').forEach(p => p.classList.remove('open'));
+    build();
+    popover.classList.add('open');
+  };
+
+  swatch.addEventListener('click', e => {
+    if (popover.classList.contains('open')) {
+      popover.classList.remove('open');
+    } else { open(e); }
+  });
+  swatch.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); swatch.click(); }
+  });
+}
+
+document.addEventListener('click', () =>
+  document.querySelectorAll('.color-popover').forEach(p => p.classList.remove('open'))
+);
+
+// ═══════════════════════════════════════════════
+// TYPOGRAPHY CONTROLS
+// ═══════════════════════════════════════════════
+const fsSld = $id('font-size-slider');
+const fsNum = $id('font-size-num');
+
+fsSld.addEventListener('input', () => {
+  S.fontSize = parseInt(fsSld.value);
+  fsNum.value = S.fontSize;
+  fsSld.setAttribute('aria-valuenow', S.fontSize);
+  updatePreview();
+});
+fsNum.addEventListener('input', () => {
+  const v = Math.max(8, Math.min(120, parseInt(fsNum.value) || 32));
+  S.fontSize = v; fsSld.value = v;
+  fsSld.setAttribute('aria-valuenow', v);
+  updatePreview();
+});
+
+$id('font-family').addEventListener('change', e => { S.fontFamily = e.target.value; updatePreview(); });
+
+document.querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    S.fontWeight = parseInt(btn.dataset.weight);
+    updatePreview();
+  });
+});
+
+const lhSld = $id('line-height-slider');
+lhSld.addEventListener('input', () => {
+  S.lineHeight = parseFloat(lhSld.value);
+  $id('lh-val').textContent = S.lineHeight.toFixed(1);
+  lhSld.setAttribute('aria-valuenow', S.lineHeight);
+  updatePreview();
+});
+
+const lsSld = $id('ls-slider');
+lsSld.addEventListener('input', () => {
+  S.letterSpacing = parseFloat(lsSld.value);
+  $id('ls-val').textContent = S.letterSpacing + 'px';
+  lsSld.setAttribute('aria-valuenow', S.letterSpacing);
+  updatePreview();
+});
+
+// ═══════════════════════════════════════════════
+// PREVIEW UPDATE
+// ═══════════════════════════════════════════════
+function updatePreview() {
+  const { r: br, g: bg_, b: bb } = S.bg;
+  const { r: tr, g: tg, b: tb } = S.text;
+  const bgCss = `rgb(${br},${bg_},${bb})`;
+  const textCss = `rgb(${tr},${tg},${tb})`;
+
+  const pt = $id('preview-text');
+  const pe = $id('preview-echo');
+
+  pt.style.backgroundColor = bgCss;
+  pt.style.color = textCss;
+  pt.style.fontSize = S.fontSize + 'px';
+  pt.style.fontFamily = S.fontFamily;
+  pt.style.fontWeight = S.fontWeight;
+  pt.style.lineHeight = S.lineHeight;
+  pt.style.letterSpacing = S.letterSpacing + 'px';
+  pt.style.borderColor = `rgba(${tr},${tg},${tb},0.22)`;
+  pt.style.boxShadow = `inset 0 0 22px rgba(${tr},${tg},${tb},0.13)`;
+
+  // Holographic echo
+  pe.style.color = textCss;
+  pe.style.backgroundColor = bgCss;
+  pe.style.fontSize = S.fontSize + 'px';
+  pe.style.fontFamily = S.fontFamily;
+  pe.style.fontWeight = S.fontWeight;
+  pe.style.lineHeight = S.lineHeight;
+  pe.style.letterSpacing = S.letterSpacing + 'px';
+  pe.textContent = pt.textContent;
+
+  // Mini CB previews
+  ['p', 'd', 't', 'a'].forEach(k => {
+    const el = $id(`cb-${k}`);
+    if (!el) return;
+    el.style.backgroundColor = bgCss;
+    el.style.color = textCss;
+    el.textContent = pt.textContent;
+  });
+}
+
+// Sync echo on typing
+$id('preview-text').addEventListener('input', () => {
+  const pt = $id('preview-text');
+  $id('preview-echo').textContent = pt.textContent;
+  ['p', 'd', 't', 'a'].forEach(k => {
+    const el = $id(`cb-${k}`);
+    if (el) el.textContent = pt.textContent;
+  });
+});
+
+// ═══════════════════════════════════════════════
+// METRICS
+// ═══════════════════════════════════════════════
+function updateMetrics() {
+  const bgL  = relativeLuminance(S.bg.r, S.bg.g, S.bg.b);
+  const txtL = relativeLuminance(S.text.r, S.text.g, S.text.b);
+  const ratio = contrastRatio(S.bg, S.text);
+
+  const ratioStr = ratio.toFixed(2) + ' : 1';
+  $id('contrast-ratio').textContent = ratioStr;
+
+  const badge = (id, pass) => {
+    const el = $id(id);
+    el.classList.toggle('pass', pass);
+    el.classList.toggle('fail', !pass);
+  };
+  badge('badge-aa',     ratio >= 4.5);
+  badge('badge-aa-lg',  ratio >= 3.0);
+  badge('badge-aaa',    ratio >= 7.0);
+  badge('badge-aaa-lg', ratio >= 4.5);
+
+  $id('lum-bg-val').textContent  = bgL.toFixed(4);
+  $id('lum-text-val').textContent = txtL.toFixed(4);
+  $id('lum-bg-sw').style.backgroundColor  = `rgb(${S.bg.r},${S.bg.g},${S.bg.b})`;
+  $id('lum-text-sw').style.backgroundColor = `rgb(${S.text.r},${S.text.g},${S.text.b})`;
+
+  $id('pip-bg').style.left   = (bgL * 100) + '%';
+  $id('pip-text').style.left = (txtL * 100) + '%';
+  $id('pip-bg').style.backgroundColor   = `rgb(${S.bg.r},${S.bg.g},${S.bg.b})`;
+  $id('pip-text').style.backgroundColor = `rgb(${S.text.r},${S.text.g},${S.text.b})`;
+
+  // Mini panel
+  $id('mm-contrast').textContent  = ratioStr;
+  $id('mm-bg-lum').textContent    = bgL.toFixed(4);
+  $id('mm-text-lum').textContent  = txtL.toFixed(4);
+  $id('mm-aa').textContent  = ratio >= 4.5 ? '✓ Pass' : '✗ Fail';
+  $id('mm-aaa').textContent = ratio >= 7.0 ? '✓ Pass' : '✗ Fail';
+
+  drawGauge(ratio);
+  updateUrlHash();
+}
+
+// ═══════════════════════════════════════════════
+// RADIAL GAUGE
+// ═══════════════════════════════════════════════
+const gaugeCanvas = $id('gauge-canvas');
+const gaugeCtx = gaugeCanvas.getContext('2d');
+const GW = gaugeCanvas.width, GH = gaugeCanvas.height;
+const GCX = GW / 2, GCY = GH - 3, GR = GH - 16;
+
+const ZONES = [
+  { from: 1,   to: 3,   color: '#ef4444' },
+  { from: 3,   to: 4.5, color: '#f97316' },
+  { from: 4.5, to: 7,   color: '#bef264' },
+  { from: 7,   to: 21,  color: '#22c55e' },
+];
+
+function ratioToAngle(v) {
+  // Log scale: ratio 1→21 mapped to π→2π (clockwise top semicircle)
+  const pct = Math.log(Math.max(1, v)) / Math.log(21);
+  return Math.PI + pct * Math.PI;
+}
+
+function drawGauge(ratio) {
+  gaugeCtx.clearRect(0, 0, GW, GH);
+
+  // Track
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(GCX, GCY, GR, Math.PI, 2 * Math.PI, false);
+  gaugeCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+  gaugeCtx.lineWidth = 10; gaugeCtx.lineCap = 'butt';
+  gaugeCtx.stroke();
+
+  // Zones
+  ZONES.forEach(z => {
+    gaugeCtx.beginPath();
+    gaugeCtx.arc(GCX, GCY, GR, ratioToAngle(z.from), ratioToAngle(Math.min(21, z.to)), false);
+    gaugeCtx.strokeStyle = z.color;
+    gaugeCtx.lineWidth = 10; gaugeCtx.lineCap = 'butt';
+    gaugeCtx.stroke();
+  });
+
+  // Needle
+  const angle = ratioToAngle(Math.max(1, Math.min(21, ratio)));
+  const nx = GCX + GR * Math.cos(angle);
+  const ny = GCY + GR * Math.sin(angle);
+  gaugeCtx.beginPath();
+  gaugeCtx.moveTo(GCX, GCY); gaugeCtx.lineTo(nx, ny);
+  gaugeCtx.strokeStyle = 'rgba(255,255,255,0.88)';
+  gaugeCtx.lineWidth = 2.5; gaugeCtx.lineCap = 'round';
+  gaugeCtx.stroke();
+
+  // Center dot
+  gaugeCtx.beginPath();
+  gaugeCtx.arc(GCX, GCY, 4.5, 0, 2 * Math.PI);
+  gaugeCtx.fillStyle = 'rgba(255,255,255,0.72)';
+  gaugeCtx.fill();
+
+  // Label
+  gaugeCtx.font = 'bold 12px system-ui';
+  gaugeCtx.fillStyle = 'rgba(255,255,255,0.78)';
+  gaugeCtx.textAlign = 'center';
+  gaugeCtx.fillText(ratio.toFixed(1) + ':1', GCX, GCY - GR * 0.38);
+}
+
+// ═══════════════════════════════════════════════
+// COLOR BLINDNESS TOGGLE
+// ═══════════════════════════════════════════════
+function updateCbToggle() {
+  const toggle = $id('cb-toggle');
+  const indicator = $id('cb-indicator');
+  const btns = document.querySelectorAll('.cb-btn');
+  let activeBtn = null;
+
+  btns.forEach(btn => {
+    const active = btn.dataset.mode === S.cbMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', String(active));
+    if (active) activeBtn = btn;
+  });
+
+  if (activeBtn) {
+    const pr = toggle.getBoundingClientRect();
+    const br = activeBtn.getBoundingClientRect();
+    indicator.style.left   = (br.left - pr.left + 3) + 'px';
+    indicator.style.width  = (br.width - 6) + 'px';
+  }
+
+  const filterMap = {
+    normal: '', protanopia: 'url(#f-protanopia)',
+    deuteranopia: 'url(#f-deuteranopia)',
+    tritanopia: 'url(#f-tritanopia)',
+    achromatopsia: 'url(#f-achromatopsia)',
+  };
+  $id('cb-filter-wrapper').style.filter = filterMap[S.cbMode] || '';
+}
+
+document.querySelectorAll('.cb-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    S.cbMode = btn.dataset.mode;
+    updateCbToggle();
+    updateUrlHash();
+  });
+});
+
+// ═══════════════════════════════════════════════
+// PREVIEW RESIZE
+// ═══════════════════════════════════════════════
+const previewWrapper = $id('preview-wrapper');
+const resizeHandle   = $id('preview-resize');
+let isResizing = false, resStartY = 0, resStartH = 0;
+
+resizeHandle.addEventListener('mousedown', e => {
+  isResizing = true; resStartY = e.clientY;
+  resStartH = previewWrapper.offsetHeight;
+  document.body.style.userSelect = 'none';
+});
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  previewWrapper.style.height = Math.max(140, resStartH + e.clientY - resStartY) + 'px';
+});
+document.addEventListener('mouseup', () => {
+  isResizing = false; document.body.style.userSelect = '';
+});
+
+// ═══════════════════════════════════════════════
+// ORCHESTRATOR
+// ═══════════════════════════════════════════════
+function onColorChange(key) {
+  updateSliderTracks();
+  syncHexAndSwatch('bg');
+  syncHexAndSwatch('text');
+  updatePreview();
+  updateMetrics();
+}
+
+function updateAll() {
+  updateSliderTracks();
+  syncHexAndSwatch('bg');
+  syncHexAndSwatch('text');
+  updatePreview();
+  updateMetrics();
+}
+
+// ═══════════════════════════════════════════════
+// ACTION BUTTONS
+// ═══════════════════════════════════════════════
+$id('btn-swap').addEventListener('click', () => {
+  [S.bg, S.text] = [{ ...S.text }, { ...S.bg }];
+  syncSliders('bg'); syncSliders('text');
+  updateAll(); showToast('Colors swapped!');
+});
+
+$id('btn-reset').addEventListener('click', () => {
+  const d = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  Object.assign(S, d);
+  syncSliders('bg'); syncSliders('text');
+  fsSld.value = S.fontSize; fsNum.value = S.fontSize;
+  $id('font-family').value = S.fontFamily;
+  lhSld.value = S.lineHeight; $id('lh-val').textContent = S.lineHeight.toFixed(1);
+  lsSld.value = S.letterSpacing; $id('ls-val').textContent = '0px';
+  document.querySelectorAll('.seg-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.weight) === 400)
+  );
+  updateAll(); updateCbToggle();
+  showToast('Reset to defaults!');
+});
+
+$id('btn-suggest').addEventListener('click', () => {
+  let found = false;
+  for (let i = 0; i < 800; i++) {
+    const bg   = { r: Math.random() * 255 | 0, g: Math.random() * 255 | 0, b: Math.random() * 255 | 0 };
+    const text = { r: Math.random() * 255 | 0, g: Math.random() * 255 | 0, b: Math.random() * 255 | 0 };
+    if (contrastRatio(bg, text) >= 7.0) {
+      S.bg = bg; S.text = text;
+      syncSliders('bg'); syncSliders('text');
+      updateAll(); found = true; break;
+    }
+  }
+  showToast(found ? '✦ AAA accessible pair found!' : 'Try again — no pair found this run');
+});
+
+$id('btn-export').addEventListener('click', () => {
+  const css = `/* ChromaType Export */\ncolor: ${toHex(S.text.r, S.text.g, S.text.b)};\nbackground-color: ${toHex(S.bg.r, S.bg.g, S.bg.b)};\nfont-size: ${S.fontSize}px;\nfont-weight: ${S.fontWeight};\nline-height: ${S.lineHeight};\nletter-spacing: ${S.letterSpacing}px;`;
+  copyText(css); showToast('CSS copied to clipboard!');
+});
+
+$id('btn-url').addEventListener('click', () => {
+  copyText(buildHashUrl()); showToast('Link copied!');
+});
+
+// ═══════════════════════════════════════════════
+// URL HASH STATE
+// ═══════════════════════════════════════════════
+function buildHashUrl() {
+  const p = new URLSearchParams({
+    bg:   toHex(S.bg.r, S.bg.g, S.bg.b).slice(1),
+    text: toHex(S.text.r, S.text.g, S.text.b).slice(1),
+    fs: S.fontSize, fw: S.fontWeight,
+    lh: S.lineHeight, ls: S.letterSpacing,
+    cb: S.cbMode,
+  });
+  return window.location.href.split('#')[0] + '#' + p.toString();
+}
+
+function updateUrlHash() {
+  const p = new URLSearchParams({
+    bg:   toHex(S.bg.r, S.bg.g, S.bg.b).slice(1),
+    text: toHex(S.text.r, S.text.g, S.text.b).slice(1),
+    fs: S.fontSize, fw: S.fontWeight,
+    lh: S.lineHeight, ls: S.letterSpacing,
+    cb: S.cbMode,
+  });
+  history.replaceState(null, '', '#' + p.toString());
+}
+
+function loadFromHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+  try {
+    const p = new URLSearchParams(hash);
+    const bg   = hexToRgb(p.get('bg') || '');
+    const text = hexToRgb(p.get('text') || '');
+    if (bg) S.bg = bg;
+    if (text) S.text = text;
+    if (p.has('fs')) S.fontSize = Math.max(8, Math.min(120, parseInt(p.get('fs')) || 32));
+    if (p.has('fw')) S.fontWeight = parseInt(p.get('fw')) || 400;
+    if (p.has('lh')) S.lineHeight = parseFloat(p.get('lh')) || 1.5;
+    if (p.has('ls')) S.letterSpacing = parseFloat(p.get('ls')) || 0;
+    if (p.has('cb')) S.cbMode = p.get('cb');
+  } catch (_) {}
+}
+
+// ═══════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  const editable = document.activeElement.contentEditable === 'true';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable) return;
+  const modeMap = { '1': 'normal', '2': 'protanopia', '3': 'deuteranopia', '4': 'tritanopia', '5': 'achromatopsia' };
+  switch (e.key) {
+    case 's': case 'S': $id('btn-swap').click(); break;
+    case 'r': case 'R': $id('btn-reset').click(); break;
+    default:
+      if (modeMap[e.key]) { S.cbMode = modeMap[e.key]; updateCbToggle(); updateUrlHash(); }
+  }
+});
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+loadFromHash();
+
+buildRgbSliders('bg-sliders', 'bg');
+buildRgbSliders('text-sliders', 'text');
+setupHexInput('bg');
+setupHexInput('text');
+setupSwatch('bg');
+setupSwatch('text');
+
+// Sync typography UI with (possibly hash-loaded) state
+fsSld.value = S.fontSize; fsNum.value = S.fontSize;
+$id('font-family').value = S.fontFamily;
+lhSld.value = S.lineHeight; $id('lh-val').textContent = S.lineHeight.toFixed(1);
+lsSld.value = S.letterSpacing; $id('ls-val').textContent = S.letterSpacing + 'px';
+document.querySelectorAll('.seg-btn').forEach(b =>
+  b.classList.toggle('active', parseInt(b.dataset.weight) === S.fontWeight)
+);
+
+updateAll();
+requestAnimationFrame(updateCbToggle); // position after layout
+
+// First-visit hint
+if (!sessionStorage.getItem('ct-visited')) {
+  sessionStorage.setItem('ct-visited', '1');
+  setTimeout(() => showToast('Tip: S swaps colors · R resets · 1–5 switch color blindness mode', 5000), 1200);
+}
+
+// Keep CB indicator positioned on resize
+new ResizeObserver(updateCbToggle).observe($id('cb-toggle'));
+</script>
+</body>
+</html>
