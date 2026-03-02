@@ -156,7 +156,7 @@ Draw each layer strip twice side-by-side to cover the viewport seamlessly during
 
 - **Screen shake**: On death (amplitude 6px, decay 300ms), on crusher slam (amplitude 3px, decay 150ms).
 - **Chromatic aberration**: Subtle (1–2px RGB split) during speed gates. Intensifies with speed.
-- **Vignette**: Constant light vignette (0.15 opacity). Intensifies to 0.4 during danger zones.
+- **Vignette**: Cons1tant light vignette (0.15 opacity). Intensifies to 0.4 during danger zones.
 - **Flash**: White overlay, 1 frame, opacity 0.6 on death. Colored flash on checkpoint/collect.
 
 ---

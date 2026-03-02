@@ -117,6 +117,255 @@ function playSFX(type) {
   }
 }
 
+// ─── Music Engine ─────────────────────────────────────────────────────────────
+const BPM = 140;
+const BEAT_SEC  = 60 / BPM;       // ~0.4286s per quarter note
+const STEP_SEC  = BEAT_SEC / 4;   // ~0.107s per 16th note
+
+let musicPlaying = false;
+let nextStepTime = 0;
+let stepIndex    = 0;     // 0-63 (4 bars of 16 steps)
+let beatPulse    = 0;     // visual pulse, 0-1
+
+// Bass note frequencies (Am → F → C → G, each 1 bar = 16 steps)
+const BASS_NOTES = [
+  110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110,  // Am
+  87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, 87.3, // F
+  130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, 130.8, // C
+  98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98, 98,   // G
+];
+
+// Lead arpeggio (16th notes, one bar pattern repeated)
+const LEAD_NOTES = [
+  440, 0, 523, 0, 659, 0, 523, 0, 440, 0, 523, 0, 659, 880, 659, 523,
+  349, 0, 440, 0, 523, 0, 440, 0, 349, 0, 440, 0, 523, 659, 523, 440,
+  523, 0, 659, 0, 784, 0, 659, 0, 523, 0, 659, 0, 784, 1047, 784, 659,
+  392, 0, 494, 0, 587, 0, 494, 0, 392, 0, 494, 0, 587, 784, 587, 494,
+];
+
+// Create a noise buffer once for hi-hat / snare
+let noiseBuffer = null;
+function getNoiseBuffer() {
+  if (noiseBuffer) return noiseBuffer;
+  if (!audioCtx) return null;
+  const len = audioCtx.sampleRate * 0.5;
+  noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  return noiseBuffer;
+}
+
+// Master gain for music (separate from SFX)
+let musicGain = null;
+function getMusicGain() {
+  if (musicGain) return musicGain;
+  if (!audioCtx) return null;
+  musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.35;
+  musicGain.connect(audioCtx.destination);
+  return musicGain;
+}
+
+function playKick(time) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(30, time + 0.12);
+  g.gain.setValueAtTime(0.7, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+  osc.connect(g); g.connect(getMusicGain());
+  osc.start(time); osc.stop(time + 0.15);
+}
+
+function playSnare(time) {
+  if (!audioCtx || !getNoiseBuffer()) return;
+  const src = audioCtx.createBufferSource();
+  const g   = audioCtx.createGain();
+  const flt = audioCtx.createBiquadFilter();
+  src.buffer = getNoiseBuffer();
+  flt.type = 'highpass'; flt.frequency.value = 2000;
+  g.gain.setValueAtTime(0.35, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+  src.connect(flt); flt.connect(g); g.connect(getMusicGain());
+  src.start(time); src.stop(time + 0.1);
+  // Add a tonal body
+  const osc = audioCtx.createOscillator();
+  const g2  = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(180, time);
+  osc.frequency.exponentialRampToValueAtTime(80, time + 0.06);
+  g2.gain.setValueAtTime(0.25, time);
+  g2.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+  osc.connect(g2); g2.connect(getMusicGain());
+  osc.start(time); osc.stop(time + 0.08);
+}
+
+function playHiHat(time, open) {
+  if (!audioCtx || !getNoiseBuffer()) return;
+  const src = audioCtx.createBufferSource();
+  const g   = audioCtx.createGain();
+  const flt = audioCtx.createBiquadFilter();
+  src.buffer = getNoiseBuffer();
+  flt.type = 'bandpass'; flt.frequency.value = 8000; flt.Q.value = 1.5;
+  const dur = open ? 0.12 : 0.04;
+  g.gain.setValueAtTime(open ? 0.12 : 0.08, time);
+  g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  src.connect(flt); flt.connect(g); g.connect(getMusicGain());
+  src.start(time); src.stop(time + dur);
+}
+
+function playBass(time, freq) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(freq, time);
+  g.gain.setValueAtTime(0.15, time);
+  g.gain.setValueAtTime(0.15, time + STEP_SEC * 0.8);
+  g.gain.exponentialRampToValueAtTime(0.001, time + STEP_SEC * 0.95);
+  osc.connect(g); g.connect(getMusicGain());
+  osc.start(time); osc.stop(time + STEP_SEC);
+}
+
+function playLead(time, freq) {
+  if (!audioCtx) return;
+  // Detuned sawtooth pair for thickness
+  for (let detune of [-8, 8]) {
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+    osc.detune.value = detune;
+    g.gain.setValueAtTime(0.06, time);
+    g.gain.setValueAtTime(0.06, time + STEP_SEC * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.001, time + STEP_SEC * 0.9);
+    osc.connect(g); g.connect(getMusicGain());
+    osc.start(time); osc.stop(time + STEP_SEC);
+  }
+}
+
+// Hazard warning telegraph — distinct rising tone
+function playWarning(time, type) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  osc.connect(g); g.connect(getMusicGain());
+  if (type === 'spike' || type === 'saw') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, time);
+    osc.frequency.exponentialRampToValueAtTime(700, time + 0.08);
+    g.gain.setValueAtTime(0.25, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    osc.start(time); osc.stop(time + 0.12);
+  } else if (type === 'gap') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, time);
+    osc.frequency.exponentialRampToValueAtTime(380, time + 0.1);
+    g.gain.setValueAtTime(0.2, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+    osc.start(time); osc.stop(time + 0.14);
+  } else if (type === 'launch') {
+    // Quick two-note arpeggio
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(330, time);
+    osc.frequency.setValueAtTime(495, time + 0.05);
+    osc.frequency.setValueAtTime(660, time + 0.1);
+    g.gain.setValueAtTime(0.2, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+    osc.start(time); osc.stop(time + 0.18);
+  }
+}
+
+function startMusic() {
+  if (!audioCtx || musicPlaying) return;
+  musicPlaying = true;
+  stepIndex    = 0;
+  nextStepTime = audioCtx.currentTime + 0.05;
+}
+
+function stopMusic() {
+  musicPlaying = false;
+}
+
+function scheduleMusic() {
+  if (!musicPlaying || !audioCtx) return;
+  const diff = diffAt(gameTime);
+
+  // Schedule ahead by 0.15s for tight timing
+  while (nextStepTime < audioCtx.currentTime + 0.15) {
+    const s  = stepIndex % 64;
+    const t  = nextStepTime;
+    const isQuarter = (s % 4) === 0;
+    const isEighth  = (s % 2) === 0;
+
+    // Kick: four-on-the-floor (every quarter note)
+    if (isQuarter) {
+      playKick(t);
+    }
+
+    // Hi-hat: 8th notes (every 2 steps)
+    if (isEighth) {
+      const openHat = !isQuarter;  // open on offbeats
+      playHiHat(t, openHat);
+    }
+
+    // Snare: backbeat (steps 4 and 12 in each bar of 16)
+    if (diff > 0.25 && ((s % 16) === 4 || (s % 16) === 12)) {
+      playSnare(t);
+    }
+
+    // Bass: 8th notes, only when diff > 0.3
+    if (diff > 0.3 && isEighth) {
+      playBass(t, BASS_NOTES[s]);
+    }
+
+    // Lead: 16th notes, only when diff > 0.6, only play non-zero notes
+    if (diff > 0.6 && LEAD_NOTES[s] > 0) {
+      playLead(t, LEAD_NOTES[s]);
+    }
+
+    // Visual beat pulse on quarter notes
+    if (isQuarter) {
+      // Schedule approximate beatPulse (will be set in physicsStep)
+      const framesAhead = Math.round((t - audioCtx.currentTime) * 60);
+      if (framesAhead <= 2) beatPulse = 1.0;
+    }
+
+    nextStepTime += STEP_SEC;
+    stepIndex++;
+  }
+}
+
+// ─── Hazard Telegraph ────────────────────────────────────────────────────────
+let warnedHazards = new Set();  // track which hazards already got a warning
+
+function telegraphHazards() {
+  if (!audioCtx || !musicPlaying) return;
+  const px = pl.x;
+  const spd = speed();
+  const warnDist = spd * 28;  // ~28 frames ahead ≈ 0.47s ≈ roughly one beat
+
+  for (const ch of chunks) {
+    for (const o of ch.obs) {
+      if (o.t === 'coin' || o.t === 'platform') continue;
+      const ox = ch.startX + o.rx - worldX;
+      const dist = ox - px;
+      // Warn when hazard is within warning distance and not yet warned
+      const key = ch.startX + ':' + o.rx + ':' + o.t;
+      if (dist > 0 && dist < warnDist && !warnedHazards.has(key)) {
+        warnedHazards.add(key);
+        // Quantize to nearest 16th note for rhythmic feel
+        const now = audioCtx.currentTime;
+        const quantized = Math.ceil(now / STEP_SEC) * STEP_SEC;
+        const warnTime = Math.max(now + 0.01, quantized);
+        playWarning(warnTime, o.t);
+      }
+    }
+  }
+}
+
 // ─── Seeded PRNG (mulberry32) — for deterministic window patterns ─────────────
 function mulberry32(seed) {
   return function() {
@@ -725,6 +974,7 @@ function triggerDeath() {
   triggerShake(6, 0.3);
   flashAlpha = 1.0;
   playSFX('death');
+  stopMusic();
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -760,6 +1010,8 @@ function startGame() {
   flashAlpha = 0;
   jumpPressed = false;
   deadT = 0;
+  warnedHazards = new Set();
+  startMusic();
 }
 
 validateSegments();  // run once at load — logs warnings for impossible layouts
@@ -853,6 +1105,11 @@ function physicsStep() {
   // Hazard check
   if (!pl.dead && checkHazards()) triggerDeath();
   if (!pl.dead) checkCoins();
+
+  // Music sequencer + hazard telegraph
+  scheduleMusic();
+  telegraphHazards();
+  if (beatPulse > 0) beatPulse = Math.max(0, beatPulse - FIXED_DT * 6);
 
   // Particles
   for (const p of pool) {
@@ -982,10 +1239,12 @@ function drawGround() {
     ctx.fillStyle = '#141428';
     ctx.fillRect(sx, GROUND_Y, BLOCK, H - GROUND_Y);
 
-    // Top edge glow
+    // Top edge glow (pulses on beat)
     ctx.fillStyle = accent;
-    ctx.globalAlpha = 0.85;
-    ctx.fillRect(sx, GROUND_Y, BLOCK, 2);
+    const glowAlpha = 0.85 + beatPulse * 0.15;
+    const glowH = 2 + beatPulse * 3;
+    ctx.globalAlpha = glowAlpha;
+    ctx.fillRect(sx, GROUND_Y - (glowH - 2), BLOCK, glowH);
     ctx.globalAlpha = 1;
 
     // Grid lines
@@ -1237,11 +1496,12 @@ function drawHUD() {
   ctx.fillStyle = '#ffffff18';
   ctx.fillRect(0, 0, W, 4);
 
-  // Progress fill
+  // Progress fill (pulses on beat)
   ctx.fillStyle   = accent;
   ctx.shadowColor = accent;
-  ctx.shadowBlur  = 8;
-  ctx.fillRect(0, 0, W * progress, 4);
+  ctx.shadowBlur  = 8 + beatPulse * 12;
+  const barH = 4 + beatPulse * 2;
+  ctx.fillRect(0, 0, W * progress, barH);
   ctx.shadowBlur  = 0;
 
   // Attempt
