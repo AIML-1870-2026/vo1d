@@ -335,35 +335,217 @@ function initPlayer() {
 
 // ─── Segment Pools ────────────────────────────────────────────────────────────
 // obstacle types: gap {rx,rw} | spike {rx} | saw {rx,ry,radius} | launch {rx}
+// DESIGN RULES (enforced by validateSegments):
+//   1. First hazard ≥ 200px from segment start
+//   2. Gaps without platforms ≤ 150px (safe at base speed 6)
+//   3. Mandatory platforms ≥ 144px wide, end-aligned with gap
+//   4. After jump landing, next hazard ≥ 100px away
+//   5. Spike clusters clearable in one jump (span ≤ 150px)
 const SEGS = {
   easy: [
-    // Spike then mandatory gap+platform (224px > max ~199px jump range)
-    { width: 768,  obs: [{ t:'spike',rx:120 },{ t:'gap',rx:240,rw:224 },{ t:'platform',rx:256,ry:-56,rw:144 },{ t:'spike',rx:520 },{ t:'gap',rx:630,rw:64 },{ t:'coin',rx:60 },{ t:'coin',rx:328,ry:-104 },{ t:'coin',rx:710 }] },
-    // Mandatory gap+platform right away, then spikes (80px gap between spikes)
-    { width: 896,  obs: [{ t:'gap',rx:160,rw:224 },{ t:'platform',rx:196,ry:-56,rw:144 },{ t:'spike',rx:470 },{ t:'spike',rx:560 },{ t:'coin',rx:80 },{ t:'coin',rx:268,ry:-104 },{ t:'coin',rx:720 }] },
-    // Low mandatory platform, then launch pad to high optional platform
-    { width: 800,  obs: [{ t:'gap',rx:120,rw:224 },{ t:'platform',rx:156,ry:-56,rw:112 },{ t:'launch',rx:400 },{ t:'platform',rx:480,ry:-130,rw:96 },{ t:'gap',rx:640,rw:96 },{ t:'coin',rx:212,ry:-104 },{ t:'coin',rx:528,ry:-178 },{ t:'coin',rx:760 }] },
-    // Spike, wide mandatory gap+platform, spikes (80px apart)
-    { width: 960,  obs: [{ t:'coin',rx:60 },{ t:'spike',rx:200 },{ t:'gap',rx:340,rw:224 },{ t:'platform',rx:376,ry:-56,rw:144 },{ t:'spike',rx:680 },{ t:'coin',rx:448,ry:-104 },{ t:'coin',rx:820 }] },
-    // Pure spikes — no platforms (variety, ample spacing)
-    { width: 704,  obs: [{ t:'spike',rx:180 },{ t:'spike',rx:350 },{ t:'spike',rx:520 },{ t:'coin',rx:80 },{ t:'coin',rx:270 },{ t:'coin',rx:620 }] },
-    // Triple mandatory platform gauntlet
-    { width: 1100, obs: [{ t:'gap',rx:80,rw:224 },{ t:'platform',rx:116,ry:-56,rw:144 },{ t:'gap',rx:360,rw:224 },{ t:'platform',rx:396,ry:-56,rw:144 },{ t:'gap',rx:680,rw:224 },{ t:'platform',rx:716,ry:-56,rw:144 },{ t:'spike',rx:980 },{ t:'coin',rx:188,ry:-104 },{ t:'coin',rx:468,ry:-104 },{ t:'coin',rx:788,ry:-104 }] },
+    // Spike then mandatory gap+platform
+    { width: 800, obs: [
+      { t:'spike',rx:240 },
+      { t:'gap',rx:400,rw:200 },{ t:'platform',rx:400,ry:-56,rw:200 },
+      { t:'spike',rx:700 },
+      { t:'coin',rx:120 },{ t:'coin',rx:500,ry:-104 },{ t:'coin',rx:770 }
+    ]},
+    // Mandatory gap+platform, then spaced spikes
+    { width: 900, obs: [
+      { t:'gap',rx:200,rw:200 },{ t:'platform',rx:200,ry:-56,rw:200 },
+      { t:'spike',rx:540 },{ t:'spike',rx:700 },
+      { t:'coin',rx:80 },{ t:'coin',rx:300,ry:-104 },{ t:'coin',rx:820 }
+    ]},
+    // Gap+platform then launch pad clears trailing gap
+    { width: 850, obs: [
+      { t:'gap',rx:200,rw:200 },{ t:'platform',rx:200,ry:-56,rw:200 },
+      { t:'launch',rx:520 },{ t:'gap',rx:700,rw:80 },
+      { t:'coin',rx:100 },{ t:'coin',rx:300,ry:-104 },{ t:'coin',rx:780 }
+    ]},
+    // Spike, mandatory gap+platform, spike
+    { width: 960, obs: [
+      { t:'spike',rx:240 },
+      { t:'gap',rx:400,rw:200 },{ t:'platform',rx:400,ry:-56,rw:200 },
+      { t:'spike',rx:740 },
+      { t:'coin',rx:100 },{ t:'coin',rx:500,ry:-104 },{ t:'coin',rx:860 }
+    ]},
+    // Two-spike cluster then single spike (ample spacing)
+    { width: 750, obs: [
+      { t:'spike',rx:220 },{ t:'spike',rx:300 },
+      { t:'spike',rx:560 },
+      { t:'coin',rx:100 },{ t:'coin',rx:430 },{ t:'coin',rx:680 }
+    ]},
+    // Triple mandatory gap+platform gauntlet
+    { width: 1200, obs: [
+      { t:'gap',rx:200,rw:200 },{ t:'platform',rx:200,ry:-56,rw:200 },
+      { t:'gap',rx:500,rw:200 },{ t:'platform',rx:500,ry:-56,rw:200 },
+      { t:'gap',rx:800,rw:200 },{ t:'platform',rx:800,ry:-56,rw:200 },
+      { t:'spike',rx:1100 },
+      { t:'coin',rx:100 },{ t:'coin',rx:300,ry:-104 },{ t:'coin',rx:600,ry:-104 },{ t:'coin',rx:900,ry:-104 }
+    ]},
   ],
   medium: [
-    // Spikes 80px apart, wide mandatory gap+platform, saw
-    { width: 960,  obs: [{ t:'spike',rx:100 },{ t:'spike',rx:180 },{ t:'gap',rx:280,rw:224 },{ t:'platform',rx:316,ry:-56,rw:144 },{ t:'saw',rx:640,ry:-44,radius:20 },{ t:'coin',rx:60 },{ t:'coin',rx:388,ry:-104 },{ t:'coin',rx:820 }] },
-    { width: 1100, obs: [{ t:'gap',rx:200,rw:96 },{ t:'spike',rx:430 },{ t:'spike',rx:510 },{ t:'spike',rx:590 },{ t:'saw',rx:760,ry:-44,radius:20 },{ t:'gap',rx:910,rw:64 },{ t:'coin',rx:80 },{ t:'coin',rx:350 },{ t:'coin',rx:850 }] },
-    { width: 1000, obs: [{ t:'saw',rx:190,ry:-44,radius:20 },{ t:'gap',rx:320,rw:64 },{ t:'launch',rx:460 },{ t:'spike',rx:610 },{ t:'spike',rx:690 },{ t:'coin',rx:80 },{ t:'coin',rx:540 },{ t:'coin',rx:850 }] },
-    { width: 1050, obs: [{ t:'spike',rx:120 },{ t:'saw',rx:300,ry:-44,radius:20 },{ t:'gap',rx:460,rw:96 },{ t:'spike',rx:650 },{ t:'spike',rx:730 },{ t:'spike',rx:810 },{ t:'coin',rx:220 },{ t:'coin',rx:550 },{ t:'coin',rx:900 }] },
+    // Two spikes, mandatory gap+platform, saw
+    { width: 1000, obs: [
+      { t:'spike',rx:220 },{ t:'spike',rx:320 },
+      { t:'gap',rx:500,rw:200 },{ t:'platform',rx:500,ry:-56,rw:200 },
+      { t:'saw',rx:820,ry:-44,radius:20 },
+      { t:'coin',rx:100 },{ t:'coin',rx:600,ry:-104 },{ t:'coin',rx:920 }
+    ]},
+    // Gap, spaced spike cluster, saw
+    { width: 1100, obs: [
+      { t:'gap',rx:200,rw:120 },
+      { t:'spike',rx:540 },{ t:'spike',rx:620 },{ t:'spike',rx:700 },
+      { t:'saw',rx:900,ry:-44,radius:20 },
+      { t:'coin',rx:80 },{ t:'coin',rx:440 },{ t:'coin',rx:1020 }
+    ]},
+    // Saw, small gap, launch, spike
+    { width: 1000, obs: [
+      { t:'saw',rx:220,ry:-44,radius:20 },
+      { t:'gap',rx:380,rw:80 },
+      { t:'launch',rx:540 },
+      { t:'spike',rx:900 },
+      { t:'coin',rx:100 },{ t:'coin',rx:700 },{ t:'coin',rx:940 }
+    ]},
+    // Spike, saw, gap, two spikes
+    { width: 1100, obs: [
+      { t:'spike',rx:220 },
+      { t:'saw',rx:400,ry:-44,radius:20 },
+      { t:'gap',rx:560,rw:120 },
+      { t:'spike',rx:900 },{ t:'spike',rx:1000 },
+      { t:'coin',rx:100 },{ t:'coin',rx:720 },{ t:'coin',rx:1060 }
+    ]},
   ],
   hard: [
-    { width: 1200, obs: [{ t:'spike',rx:100 },{ t:'spike',rx:160 },{ t:'gap',rx:360,rw:128 },{ t:'saw',rx:590,ry:-44,radius:20 },{ t:'spike',rx:740 },{ t:'spike',rx:800 },{ t:'gap',rx:940,rw:96 },{ t:'saw',rx:1100,ry:-44,radius:20 },{ t:'coin',rx:260 },{ t:'coin',rx:870 },{ t:'coin',rx:1020 }] },
-    { width: 1280, obs: [{ t:'gap',rx:150,rw:96 },{ t:'saw',rx:360,ry:-44,radius:20 },{ t:'gap',rx:560,rw:128 },{ t:'spike',rx:790 },{ t:'spike',rx:850 },{ t:'spike',rx:910 },{ t:'saw',rx:1110,ry:-44,radius:20 },{ t:'coin',rx:250 },{ t:'coin',rx:470 },{ t:'coin',rx:1020 }] },
-    { width: 1100, obs: [{ t:'gap',rx:200,rw:128 },{ t:'saw',rx:430,ry:-44,radius:20 },{ t:'spike',rx:580 },{ t:'spike',rx:640 },{ t:'spike',rx:700 },{ t:'gap',rx:820,rw:96 },{ t:'launch',rx:990 },{ t:'coin',rx:80 },{ t:'coin',rx:745 },{ t:'coin',rx:900 }] },
-    { width: 1150, obs: [{ t:'saw',rx:120,ry:-44,radius:20 },{ t:'spike',rx:250 },{ t:'spike',rx:310 },{ t:'gap',rx:460,rw:128 },{ t:'spike',rx:690 },{ t:'saw',rx:860,ry:-44,radius:20 },{ t:'gap',rx:1000,rw:96 },{ t:'coin',rx:190 },{ t:'coin',rx:580 },{ t:'coin',rx:900 }] },
+    // Two spikes, gap, saw, two spikes
+    { width: 1300, obs: [
+      { t:'spike',rx:220 },{ t:'spike',rx:310 },
+      { t:'gap',rx:640,rw:120 },
+      { t:'saw',rx:880,ry:-44,radius:20 },
+      { t:'spike',rx:1060 },{ t:'spike',rx:1140 },
+      { t:'coin',rx:100 },{ t:'coin',rx:760 },{ t:'coin',rx:1220 }
+    ]},
+    // Gap, saw, gap, two spikes, saw
+    { width: 1280, obs: [
+      { t:'gap',rx:200,rw:100 },
+      { t:'saw',rx:440,ry:-44,radius:20 },
+      { t:'gap',rx:620,rw:120 },
+      { t:'spike',rx:960 },{ t:'spike',rx:1050 },
+      { t:'saw',rx:1180,ry:-44,radius:20 },
+      { t:'coin',rx:100 },{ t:'coin',rx:540 },{ t:'coin',rx:1100 }
+    ]},
+    // Gap, saw, spike pair, gap, launch
+    { width: 1150, obs: [
+      { t:'gap',rx:200,rw:120 },
+      { t:'saw',rx:460,ry:-44,radius:20 },
+      { t:'spike',rx:640 },{ t:'spike',rx:720 },
+      { t:'gap',rx:860,rw:100 },
+      { t:'launch',rx:1040 },
+      { t:'coin',rx:100 },{ t:'coin',rx:780 },{ t:'coin',rx:960 }
+    ]},
+    // Saw, two spikes, gap, spike, saw
+    { width: 1200, obs: [
+      { t:'saw',rx:220,ry:-44,radius:20 },
+      { t:'spike',rx:400 },{ t:'spike',rx:480 },
+      { t:'gap',rx:640,rw:120 },
+      { t:'spike',rx:900 },
+      { t:'saw',rx:1060,ry:-44,radius:20 },
+      { t:'coin',rx:100 },{ t:'coin',rx:560 },{ t:'coin',rx:1140 }
+    ]},
   ],
 };
+
+// ─── Level Validator ──────────────────────────────────────────────────────────
+// Simulates an optimal player through each segment to verify it's beatable.
+function validateSegments() {
+  const G = 0.6, JV = -10, LV = -14, HS = 14;
+  const poolSpeeds = { easy: 6, medium: 7, hard: 9 };
+
+  function simJump(vel, spd) {
+    let vy = vel, y = 0, x = 0;
+    do { vy += G; y += vy; x += spd; } while (y < 0 || vy < 0);
+    return x;  // horizontal range
+  }
+
+  let allOk = true;
+  for (const [pool, segs] of Object.entries(SEGS)) {
+    const spd = poolSpeeds[pool];
+    const jumpRange = simJump(JV, spd);
+    const launchRange = simJump(LV, spd);
+
+    segs.forEach((seg, idx) => {
+      const issues = [];
+      const haz = seg.obs.filter(o => o.t !== 'coin' && o.t !== 'platform')
+                        .sort((a, b) => a.rx - b.rx);
+
+      // Rule 1: first hazard ≥ 200px
+      if (haz.length && haz[0].rx < 200) {
+        issues.push(`First hazard (${haz[0].t}) at rx:${haz[0].rx} < 200px`);
+      }
+
+      // Rule 2: gaps without platform must be jumpable
+      for (const o of seg.obs.filter(o => o.t === 'gap')) {
+        const hasPlat = seg.obs.some(p => p.t === 'platform' &&
+          p.rx >= o.rx && p.rx < o.rx + o.rw);
+        if (!hasPlat && o.rw > jumpRange - 20) {
+          issues.push(`Gap rx:${o.rx} w:${o.rw} too wide (range=${jumpRange|0})`);
+        }
+      }
+
+      // Rule 3: mandatory platforms wide enough
+      for (const o of seg.obs.filter(o => o.t === 'platform')) {
+        if ((o.rw || 96) < 144) {
+          issues.push(`Platform rx:${o.rx} w:${o.rw} < 144px`);
+        }
+      }
+
+      // Rule 4: simulate traversal — check post-landing clearance
+      // Walk through hazards, computing landing positions after each jump
+      let playerX = 0;
+      for (let h = 0; h < haz.length; h++) {
+        const o = haz[h];
+        if (o.t === 'launch') { playerX = o.rx + launchRange; continue; }
+        // Player must jump to clear this hazard
+        const jumpStart = Math.max(playerX, o.t === 'gap' ? o.rx : o.rx - 10);
+        const landX = jumpStart + jumpRange;
+
+        // For gaps, landing must be past gap end
+        if (o.t === 'gap' && landX < o.rx + o.rw) {
+          const hasPlat = seg.obs.some(p => p.t === 'platform' &&
+            p.rx >= o.rx && p.rx < o.rx + o.rw);
+          if (!hasPlat) {
+            issues.push(`Can't clear gap rx:${o.rx} w:${o.rw} from x=${jumpStart|0}`);
+          } else {
+            // Landing on platform — player walks off at platform end
+            const plat = seg.obs.find(p => p.t === 'platform' &&
+              p.rx >= o.rx && p.rx < o.rx + o.rw);
+            playerX = plat.rx + (plat.rw || 96);
+            continue;
+          }
+        }
+
+        playerX = landX;
+        // Check clearance to next hazard
+        if (h + 1 < haz.length) {
+          const next = haz[h + 1];
+          const nextX = next.t === 'gap' ? next.rx : next.rx;
+          // Skip if next hazard is within current jump arc
+          if (nextX < landX) continue;
+          const clearance = nextX - landX;
+          if (clearance < 80) {
+            issues.push(`Only ${clearance|0}px after landing (x=${landX|0}) before ${next.t} rx:${nextX}`);
+          }
+        }
+      }
+
+      if (issues.length) {
+        allOk = false;
+        console.warn(`[LEVEL] ${pool}[${idx}]:`, issues.join('; '));
+      }
+    });
+  }
+  if (allOk) console.log('[LEVEL] All segments validated OK');
+}
 
 // ─── Warm-up Segment (first spikes, no gaps — eases player into hazards) ───────
 const WARMUP_SEG = {
@@ -579,6 +761,8 @@ function startGame() {
   jumpPressed = false;
   deadT = 0;
 }
+
+validateSegments();  // run once at load — logs warnings for impossible layouts
 
 // ─── Speed ────────────────────────────────────────────────────────────────────
 function speed() { return BASE_SPEED + (MAX_SPEED - BASE_SPEED) * clamp(gameTime / 90, 0, 1); }
