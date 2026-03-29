@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atmos — Live Weather</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS/JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            base: '#0a0f1a',
+            surface: '#111827',
+            surfaceLight: '#1f2937',
+            accent: {
+              clear: '#f59e0b',
+              cloudy: '#94a3b8',
+              rain: '#0d9488',
+              snow: '#bfdbfe',
+              thunder: '#7c3aed',
+            },
+          },
+          fontFamily: {
+            display: ['"Space Mono"', 'monospace'],
+            body: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #0a0f1a; color: #e5e7eb; min-height: 100vh; }
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+    ::-webkit-scrollbar-track { background: #1f2937; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
+    /* Weather animations */
+    @keyframes rain { 0% { transform: translateY(-100vh); opacity: 1; } 100% { transform: translateY(100vh); opacity: 0.3; } }
+    @keyframes snow { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(360deg); opacity: 0.2; } }
+    @keyframes cloudDrift { 0% { transform: translateX(-100%); } 100% { transform: translateX(100vw); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+    .rain-drop {
+      position: fixed; top: -10px; width: 2px; background: linear-gradient(transparent, #0d9488);
+      pointer-events: none; z-index: 0; animation: rain linear infinite;
+    }
+    .snow-flake {
+      position: fixed; top: -10px; width: 6px; height: 6px; background: #bfdbfe; border-radius: 50%;
+      pointer-events: none; z-index: 0; opacity: 0.7; animation: snow linear infinite;
+    }
+    .cloud-puff {
+      position: fixed; top: 5%; width: 200px; height: 60px; background: rgba(148,163,184,0.08);
+      border-radius: 50%; pointer-events: none; z-index: 0; animation: cloudDrift linear infinite;
+    }
+
+    .leaflet-container { background: #111827 !important; border-radius: 0.75rem; }
+
+    /* Sun arc */
+    .sun-arc-track { fill: none; stroke: #374151; stroke-width: 2; stroke-dasharray: 4 4; }
+    .sun-arc-progress { fill: none; stroke: #f59e0b; stroke-width: 3; stroke-linecap: round; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    const API_KEY = '3593e28ff9d2962ebba7c2ec59837bcc';
+    const BASE = 'https://api.openweathermap.org';
+
+    // ─── Helpers ───
+    const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+    const toF = (c) => (c * 9) / 5 + 32;
+    const toC = (f) => ((f - 32) * 5) / 9;
+    const mpsToMph = (mps) => mps * 2.237;
+    const mToMi = (m) => m / 1609.34;
+    const mToKm = (m) => m / 1000;
+
+    const fmtTemp = (kelvin, units) => {
+      const c = kelvin - 273.15;
+      return units === 'imperial' ? `${Math.round(toF(c))}°F` : `${Math.round(c)}°C`;
+    };
+    const fmtTempRaw = (kelvin, units) => {
+      const c = kelvin - 273.15;
+      return units === 'imperial' ? Math.round(toF(c)) : Math.round(c);
+    };
+    const fmtWind = (mps, units) =>
+      units === 'imperial' ? `${Math.round(mpsToMph(mps))} mph` : `${Math.round(mps)} m/s`;
+    const fmtVis = (m, units) =>
+      units === 'imperial' ? `${mToMi(m).toFixed(1)} mi` : `${mToKm(m).toFixed(1)} km`;
+
+    const windDir = (deg) => {
+      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+      return dirs[Math.round(deg / 22.5) % 16];
+    };
+
+    const iconUrl = (code) => `https://openweathermap.org/img/wn/${code}@2x.png`;
+    const fmtTime = (unix, tz = 0) => {
+      const d = new Date((unix + tz) * 1000);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+    };
+    const fmtDate = (unix) => {
+      const d = new Date(unix * 1000);
+      return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    };
+    const fmtDay = (unix) => new Date(unix * 1000).toLocaleDateString([], { weekday: 'short' });
+
+    const conditionAccent = (id) => {
+      if (!id) return '#94a3b8';
+      if (id >= 200 && id < 300) return '#7c3aed';
+      if (id >= 300 && id < 600) return '#0d9488';
+      if (id >= 600 && id < 700) return '#bfdbfe';
+      if (id === 800) return '#f59e0b';
+      return '#94a3b8';
+    };
+
+    const aqiLabels = ['Good','Fair','Moderate','Poor','Very Poor'];
+    const aqiColors = ['#22c55e','#84cc16','#eab308','#f97316','#ef4444'];
+    const aqiHealth = [
+      'Air quality is satisfactory and poses little or no risk.',
+      'Air quality is acceptable. Some pollutants may be a concern for sensitive individuals.',
+      'Members of sensitive groups may experience health effects.',
+      'Everyone may begin to experience health effects.',
+      'Health alert: everyone may experience serious health effects.'
+    ];
+
+    // ─── Storage helpers ───
+    const loadStorage = (key, fallback) => {
+      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+    };
+    const saveStorage = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } };
+
+    // ─── Weather Background Animations ───
+    function WeatherBg({ conditionId }) {
+      if (!conditionId) return null;
+      if (conditionId >= 200 && conditionId < 600) {
+        // Rain / drizzle / thunderstorm
+        const drops = Array.from({ length: 60 }, (_, i) => (
+          <div key={i} className="rain-drop" style={{
+            left: `${Math.random() * 100}%`,
+            height: `${15 + Math.random() * 25}px`,
+            animationDuration: `${0.5 + Math.random() * 0.7}s`,
+            animationDelay: `${Math.random() * 2}s`,
+            opacity: 0.3 + Math.random() * 0.3,
+          }} />
+        ));
+        return <>{drops}</>;
+      }
+      if (conditionId >= 600 && conditionId < 700) {
+        const flakes = Array.from({ length: 40 }, (_, i) => (
+          <div key={i} className="snow-flake" style={{
+            left: `${Math.random() * 100}%`,
+            width: `${3 + Math.random() * 5}px`, height: `${3 + Math.random() * 5}px`,
+            animationDuration: `${3 + Math.random() * 5}s`,
+            animationDelay: `${Math.random() * 4}s`,
+          }} />
+        ));
+        return <>{flakes}</>;
+      }
+      if (conditionId > 800) {
+        const clouds = Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="cloud-puff" style={{
+            top: `${2 + Math.random() * 15}%`,
+            width: `${150 + Math.random() * 200}px`, height: `${40 + Math.random() * 40}px`,
+            animationDuration: `${30 + Math.random() * 40}s`,
+            animationDelay: `${Math.random() * 20}s`,
+          }} />
+        ));
+        return <>{clouds}</>;
+      }
+      return null;
+    }
+
+    // ─── Alert Banner ───
+    function AlertBanner({ alerts }) {
+      const [expanded, setExpanded] = useState({});
+      if (!alerts || alerts.length === 0) {
+        return (
+          <div className="bg-green-900/30 border border-green-700/40 rounded-xl px-4 py-2 mb-4 flex items-center gap-2 fade-in">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+            <span className="text-green-400 text-sm font-medium">No active weather alerts</span>
+          </div>
+        );
+      }
+      const sevColor = { Extreme: '#ef4444', Severe: '#f97316', Moderate: '#eab308', Minor: '#3b82f6', Unknown: '#94a3b8' };
+      const riskLevel = alerts.some(a => ['Extreme','Severe'].includes(a.severity)) ? 'High risk' :
+                        alerts.some(a => a.severity === 'Moderate') ? 'Moderate risk' : 'Low risk';
+      const riskColor = riskLevel === 'High risk' ? 'text-red-400' : riskLevel === 'Moderate risk' ? 'text-yellow-400' : 'text-blue-400';
+
+      return (
+        <div className="space-y-2 mb-4 fade-in">
+          <div className={`text-xs font-semibold uppercase tracking-wider ${riskColor} mb-1`}>
+            {riskLevel} — {alerts.length} active alert{alerts.length > 1 ? 's' : ''}
+          </div>
+          {alerts.map((a, i) => (
+            <div key={i} className="rounded-xl border px-4 py-3" style={{ borderColor: sevColor[a.severity] || sevColor.Unknown, background: 'rgba(17,24,39,0.8)' }}>
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setExpanded(p => ({ ...p, [i]: !p[i] }))}>
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: sevColor[a.severity] || sevColor.Unknown }}></span>
+                <span className="font-semibold text-sm flex-1">{a.event}</span>
+                <span className="text-xs text-gray-400">{a.sender || ''}</span>
+                <svg className={`w-4 h-4 transition-transform ${expanded[i] ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {a.start && <div className="text-xs text-gray-500 mt-1">{new Date(a.start * 1000).toLocaleString()} — {new Date(a.end * 1000).toLocaleString()}</div>}
+              {expanded[i] && <p className="text-xs text-gray-400 mt-2 whitespace-pre-wrap">{a.description}</p>}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ─── Current Conditions ───
+    function CurrentWeather({ data, units, accent }) {
+      if (!data) return null;
+      const w = data.weather[0];
+      return (
+        <div className="fade-in">
+          <div className="flex items-center gap-1 mb-1">
+            <h2 className="text-xl font-bold">{data.name}</h2>
+            <span className="text-gray-400 text-sm">{data.sys.country}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <img src={iconUrl(w.icon)} alt={w.description} className="w-20 h-20 -ml-3" />
+            <div>
+              <div className="font-display text-6xl font-bold leading-none" style={{ color: accent }}>{fmtTemp(data.main.temp, units)}</div>
+              <div className="text-gray-400 text-sm mt-1">Feels like {fmtTemp(data.main.feels_like, units)}</div>
+            </div>
+          </div>
+          <p className="capitalize text-gray-300 text-sm mt-2 mb-4">{w.description}</p>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {[
+              ['Humidity', `${data.main.humidity}%`],
+              ['Wind', `${fmtWind(data.wind.speed, units)} ${windDir(data.wind.deg)}`],
+              ['Pressure', `${data.main.pressure} hPa`],
+              ['Visibility', fmtVis(data.visibility, units)],
+              ['Clouds', `${data.clouds.all}%`],
+            ].map(([label, val]) => (
+              <div key={label} className="bg-surfaceLight/50 rounded-lg px-3 py-2">
+                <div className="text-gray-500 text-xs">{label}</div>
+                <div className="font-medium">{val}</div>
+              </div>
+            ))}
+            <div className="bg-surfaceLight/50 rounded-lg px-3 py-2 flex items-center gap-2">
+              <div className="text-gray-500 text-xs">Wind Dir</div>
+              <svg width="24" height="24" viewBox="0 0 24 24" style={{ transform: `rotate(${data.wind.deg}deg)` }}>
+                <path d="M12 2 L16 14 L12 11 L8 14 Z" fill={accent} />
+              </svg>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Hourly Forecast ───
+    function HourlyForecast({ forecast, units, tz }) {
+      if (!forecast) return null;
+      const items = forecast.list.slice(0, 8);
+      return (
+        <div className="fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Next 24 Hours</h3>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {items.map((item, i) => (
+              <div key={i} className="flex-shrink-0 bg-surfaceLight/50 rounded-xl px-4 py-3 text-center min-w-[80px]">
+                <div className="text-xs text-gray-400">{fmtTime(item.dt, tz)}</div>
+                <img src={iconUrl(item.weather[0].icon)} alt="" className="w-10 h-10 mx-auto" />
+                <div className="font-semibold text-sm">{fmtTemp(item.main.temp, units)}</div>
+                {item.pop > 0 && <div className="text-xs text-teal-400 mt-1">{Math.round(item.pop * 100)}%</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── 5-Day Forecast ───
+    function DailyForecast({ forecast, units }) {
+      if (!forecast) return null;
+      // Aggregate by day
+      const days = {};
+      forecast.list.forEach((item) => {
+        const day = new Date(item.dt * 1000).toDateString();
+        if (!days[day]) days[day] = { temps: [], icons: [], pops: [], dt: item.dt };
+        days[day].temps.push(item.main.temp);
+        days[day].icons.push(item.weather[0].icon);
+        days[day].pops.push(item.pop || 0);
+      });
+      const dayList = Object.values(days).slice(0, 5);
+
+      return (
+        <div className="fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">5-Day Forecast</h3>
+          <div className="space-y-2">
+            {dayList.map((d, i) => {
+              const hi = Math.max(...d.temps);
+              const lo = Math.min(...d.temps);
+              // Most frequent icon
+              const iconCount = {};
+              d.icons.forEach(ic => { iconCount[ic] = (iconCount[ic] || 0) + 1; });
+              const topIcon = Object.entries(iconCount).sort((a, b) => b[1] - a[1])[0][0];
+              const maxPop = Math.max(...d.pops);
+              return (
+                <div key={i} className="flex items-center gap-3 bg-surfaceLight/50 rounded-xl px-4 py-2">
+                  <div className="w-16 text-sm text-gray-300">{i === 0 ? 'Today' : fmtDay(d.dt)}</div>
+                  <img src={iconUrl(topIcon)} alt="" className="w-8 h-8" />
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-sm font-semibold">{fmtTemp(hi, units)}</span>
+                    <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${((fmtTempRaw(hi, units) - fmtTempRaw(lo, units)) / 40) * 100}%`, background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}></div>
+                    </div>
+                    <span className="text-sm text-gray-400">{fmtTemp(lo, units)}</span>
+                  </div>
+                  {maxPop > 0.1 && <span className="text-xs text-teal-400 w-10 text-right">{Math.round(maxPop * 100)}%</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Temperature Chart ───
+    function TempChart({ forecast, units }) {
+      const canvasRef = useRef(null);
+      const chartRef = useRef(null);
+
+      useEffect(() => {
+        if (!forecast || !canvasRef.current) return;
+        const days = {};
+        forecast.list.forEach(item => {
+          const day = new Date(item.dt * 1000).toDateString();
+          if (!days[day]) days[day] = { temps: [], dt: item.dt };
+          days[day].temps.push(item.main.temp);
+        });
+        const dayList = Object.values(days).slice(0, 5);
+        const labels = dayList.map((d, i) => i === 0 ? 'Today' : fmtDay(d.dt));
+        const highs = dayList.map(d => fmtTempRaw(Math.max(...d.temps), units));
+        const lows = dayList.map(d => fmtTempRaw(Math.min(...d.temps), units));
+
+        if (chartRef.current) chartRef.current.destroy();
+        chartRef.current = new Chart(canvasRef.current, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'High', data: highs, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#f59e0b' },
+              { label: 'Low', data: lows, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#3b82f6' },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#9ca3af', font: { family: 'DM Sans' } } } },
+            scales: {
+              x: { ticks: { color: '#6b7280' }, grid: { color: '#1f2937' } },
+              y: { ticks: { color: '#6b7280', callback: v => v + '°' }, grid: { color: '#1f2937' } },
+            },
+          },
+        });
+        return () => { if (chartRef.current) chartRef.current.destroy(); };
+      }, [forecast, units]);
+
+      if (!forecast) return null;
+      return (
+        <div className="fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Temperature Trend</h3>
+          <div className="h-48"><canvas ref={canvasRef}></canvas></div>
+        </div>
+      );
+    }
+
+    // ─── AQI Card ───
+    function AqiCard({ aqi }) {
+      const [open, setOpen] = useState(false);
+      if (!aqi) return null;
+      const idx = aqi.list[0].main.aqi - 1;
+      const comps = aqi.list[0].components;
+      return (
+        <div className="bg-surfaceLight/50 rounded-xl p-4 fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Air Quality</h3>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg" style={{ background: aqiColors[idx] + '30', color: aqiColors[idx] }}>
+              {idx + 1}
+            </div>
+            <div>
+              <div className="font-semibold" style={{ color: aqiColors[idx] }}>{aqiLabels[idx]}</div>
+              <div className="text-xs text-gray-400 max-w-[200px]">{aqiHealth[idx]}</div>
+            </div>
+          </div>
+          <button onClick={() => setOpen(!open)} className="text-xs text-gray-500 hover:text-gray-300 transition">
+            {open ? 'Hide' : 'Show'} pollutant details
+          </button>
+          {open && (
+            <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+              {[['PM2.5', comps.pm2_5],['PM10', comps.pm10],['O\u2083', comps.o3],['NO\u2082', comps.no2],['SO\u2082', comps.so2],['CO', comps.co]].map(([l, v]) => (
+                <div key={l} className="bg-surface rounded-lg px-2 py-1.5">
+                  <div className="text-gray-500">{l}</div>
+                  <div className="font-medium">{v?.toFixed(1)} \u00b5g/m\u00b3</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── Sunrise / Sunset Arc ───
+    function SunArc({ current }) {
+      if (!current) return null;
+      const { sunrise, sunset } = current.sys;
+      const tz = current.timezone;
+      const now = Math.floor(Date.now() / 1000);
+      const total = sunset - sunrise;
+      const elapsed = Math.max(0, Math.min(total, now - sunrise));
+      const pct = total > 0 ? elapsed / total : 0;
+      const isDaytime = now >= sunrise && now <= sunset;
+
+      // Arc path on SVG
+      const cx = 120, cy = 100, r = 80;
+      const startAngle = Math.PI;
+      const endAngle = 0;
+      const currentAngle = startAngle - pct * Math.PI;
+
+      const sx = cx + r * Math.cos(startAngle);
+      const sy = cy - r * Math.sin(startAngle);
+      const ex = cx + r * Math.cos(endAngle);
+      const ey = cy - r * Math.sin(endAngle);
+      const sunX = cx + r * Math.cos(currentAngle);
+      const sunY = cy - r * Math.sin(currentAngle);
+
+      return (
+        <div className="bg-surfaceLight/50 rounded-xl p-4 fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Sunrise & Sunset</h3>
+          <svg viewBox="0 0 240 130" className="w-full max-w-[240px] mx-auto">
+            {/* Horizon line */}
+            <line x1="30" y1="100" x2="210" y2="100" stroke="#374151" strokeWidth="1" />
+            {/* Track */}
+            <path d={`M ${sx} ${sy} A ${r} ${r} 0 0 1 ${ex} ${ey}`} className="sun-arc-track" />
+            {/* Progress */}
+            {isDaytime && (
+              <>
+                <path d={`M ${sx} ${sy} A ${r} ${r} 0 0 1 ${sunX} ${sunY}`} className="sun-arc-progress" />
+                <circle cx={sunX} cy={sunY} r="8" fill="#f59e0b" />
+                <circle cx={sunX} cy={sunY} r="12" fill="#f59e0b" opacity="0.2" />
+              </>
+            )}
+            {/* Labels */}
+            <text x="40" y="118" fill="#9ca3af" fontSize="10" textAnchor="middle" fontFamily="DM Sans">{fmtTime(sunrise, tz)}</text>
+            <text x="200" y="118" fill="#9ca3af" fontSize="10" textAnchor="middle" fontFamily="DM Sans">{fmtTime(sunset, tz)}</text>
+            <text x="40" y="95" fill="#6b7280" fontSize="9" textAnchor="middle" fontFamily="DM Sans">Sunrise</text>
+            <text x="200" y="95" fill="#6b7280" fontSize="9" textAnchor="middle" fontFamily="DM Sans">Sunset</text>
+          </svg>
+          <div className="flex justify-between text-xs text-gray-500 mt-1 px-2">
+            <span>Golden hour: {fmtTime(sunrise, tz)} — {fmtTime(sunrise + 3600, tz)}</span>
+            <span>{fmtTime(sunset - 3600, tz)} — {fmtTime(sunset, tz)}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── What to Wear ───
+    function WearSuggestion({ current, units }) {
+      if (!current) return null;
+      const tempC = current.main.temp - 273.15;
+      const condId = current.weather[0].id;
+      const windSpeed = current.wind.speed;
+      const suggestions = [];
+
+      if (tempC < 0) suggestions.push({ icon: '🧥', text: 'Heavy winter coat, gloves, and hat' });
+      else if (tempC < 10) suggestions.push({ icon: '🧥', text: 'Warm jacket and layers' });
+      else if (tempC < 18) suggestions.push({ icon: '🧶', text: 'Light jacket or sweater' });
+      else if (tempC < 25) suggestions.push({ icon: '👕', text: 'T-shirt and light clothing' });
+      else suggestions.push({ icon: '🩳', text: 'Light, breathable clothes — stay cool' });
+
+      if (condId >= 200 && condId < 600) suggestions.push({ icon: '☂️', text: 'Bring an umbrella' });
+      if (condId >= 600 && condId < 700) suggestions.push({ icon: '🥾', text: 'Wear waterproof boots' });
+      if (windSpeed > 8) suggestions.push({ icon: '🌬️', text: 'Wear a windbreaker' });
+      if (condId === 800 && tempC > 20) suggestions.push({ icon: '🕶️', text: 'Sunscreen and sunglasses recommended' });
+
+      return (
+        <div className="bg-surfaceLight/50 rounded-xl p-4 fade-in">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">What to Wear</h3>
+          <div className="space-y-2">
+            {suggestions.map((s, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <span className="text-xl">{s.icon}</span>
+                <span>{s.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Weather Map ───
+    function WeatherMap({ lat, lon, expanded, setExpanded }) {
+      const mapRef = useRef(null);
+      const mapInstance = useRef(null);
+      const layerRef = useRef(null);
+      const [layer, setLayer] = useState('precipitation_new');
+      const layers = [
+        ['precipitation_new', 'Precipitation'],
+        ['temp_new', 'Temperature'],
+        ['wind_new', 'Wind'],
+        ['clouds_new', 'Clouds'],
+        ['pressure_new', 'Pressure'],
+      ];
+
+      useEffect(() => {
+        if (!expanded || !mapRef.current || mapInstance.current) return;
+        mapInstance.current = L.map(mapRef.current, { zoomControl: true, scrollWheelZoom: true }).setView([lat, lon], 7);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OSM & Carto',
+        }).addTo(mapInstance.current);
+        return () => { if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; } };
+      }, [expanded]);
+
+      useEffect(() => {
+        if (!mapInstance.current) return;
+        mapInstance.current.setView([lat, lon], 7);
+      }, [lat, lon]);
+
+      useEffect(() => {
+        if (!mapInstance.current) return;
+        if (layerRef.current) mapInstance.current.removeLayer(layerRef.current);
+        layerRef.current = L.tileLayer(
+          `https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${API_KEY}`,
+          { opacity: 0.6 }
+        ).addTo(mapInstance.current);
+      }, [layer, expanded]);
+
+      return (
+        <div className="fade-in">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Weather Map</h3>
+            <button onClick={() => setExpanded(!expanded)} className="text-xs text-gray-500 hover:text-gray-300 transition">
+              {expanded ? 'Hide Map' : 'Show Map'}
+            </button>
+          </div>
+          {expanded && (
+            <>
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {layers.map(([key, label]) => (
+                  <button key={key} onClick={() => setLayer(key)}
+                    className={`text-xs px-3 py-1 rounded-full transition ${layer === key ? 'bg-blue-600 text-white' : 'bg-surfaceLight text-gray-400 hover:bg-gray-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div ref={mapRef} className="w-full h-64 md:h-80 rounded-xl"></div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ─── Search ───
+    function SearchBar({ onSearch, onGeolocate, units, setUnits, history, accent }) {
+      const [query, setQuery] = useState('');
+      const [suggestions, setSuggestions] = useState([]);
+      const [showSugg, setShowSugg] = useState(false);
+
+      const fetchSuggestions = useCallback(
+        debounce(async (q) => {
+          if (q.length < 2) { setSuggestions([]); return; }
+          try {
+            const res = await fetch(`${BASE}/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=5&appid=${API_KEY}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            setSuggestions(Array.isArray(data) ? data : []);
+            setShowSugg(true);
+          } catch (err) { console.error('Geocoding error:', err); setSuggestions([]); }
+        }, 300),
+        []
+      );
+
+      const pickSuggestion = (s) => {
+        setShowSugg(false);
+        setQuery(`${s.name}${s.state ? ', ' + s.state : ''}, ${s.country}`);
+        onSearch(s.lat, s.lon, s.name, s.country);
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!query.trim()) return;
+        setShowSugg(false);
+        try {
+          const res = await fetch(`${BASE}/geo/1.0/direct?q=${encodeURIComponent(query)}&limit=1&appid=${API_KEY}`);
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            onSearch(data[0].lat, data[0].lon, data[0].name, data[0].country);
+          } else {
+            onSearch(null, null, null, null);
+          }
+        } catch (err) {
+          console.error('Search error:', err);
+          onSearch(null, null, null, null);
+        }
+      };
+
+      return (
+        <header className="sticky top-0 z-50 bg-base/90 backdrop-blur-lg border-b border-gray-800 px-4 py-3">
+          <div className="max-w-6xl mx-auto flex items-center gap-3 flex-wrap">
+            <h1 className="font-display font-bold text-xl tracking-tight" style={{ color: accent }}>Atmos</h1>
+            <form onSubmit={handleSubmit} className="flex-1 min-w-[200px] relative">
+              <input
+                type="text" value={query}
+                onChange={(e) => { setQuery(e.target.value); fetchSuggestions(e.target.value); }}
+                onFocus={() => suggestions.length > 0 && setShowSugg(true)}
+                placeholder="Search city..."
+                className="w-full bg-surface border border-gray-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition"
+                aria-label="Search for a city"
+              />
+              {showSugg && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-gray-700 rounded-xl overflow-hidden shadow-xl z-50">
+                  {suggestions.map((s, i) => (
+                    <button key={i} type="button" onClick={() => pickSuggestion(s)}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-surfaceLight transition">
+                      {s.name}{s.state ? `, ${s.state}` : ''}, {s.country}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </form>
+
+            {/* Unit toggle */}
+            <button
+              onClick={() => setUnits(u => { const next = u === 'imperial' ? 'metric' : 'imperial'; saveStorage('atmos_units', next); return next; })}
+              className="bg-surface border border-gray-700 rounded-xl px-3 py-2 text-sm font-semibold hover:bg-surfaceLight transition"
+              aria-label="Toggle temperature units"
+            >
+              {units === 'imperial' ? '°F' : '°C'}
+            </button>
+
+            {/* Geolocation */}
+            <button onClick={onGeolocate} className="bg-surface border border-gray-700 rounded-xl px-3 py-2 hover:bg-surfaceLight transition" aria-label="Use my location">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+          </div>
+
+          {/* Search history chips */}
+          {history.length > 0 && (
+            <div className="max-w-6xl mx-auto mt-2 flex gap-2 flex-wrap">
+              {history.map((h, i) => (
+                <button key={i} onClick={() => { setQuery(h.name); onSearch(h.lat, h.lon, h.name, h.country); }}
+                  className="text-xs bg-surfaceLight/60 text-gray-400 px-3 py-1 rounded-full hover:bg-surfaceLight hover:text-gray-200 transition">
+                  {h.name}, {h.country}
+                </button>
+              ))}
+            </div>
+          )}
+        </header>
+      );
+    }
+
+    // ─── Loading Skeleton ───
+    function Skeleton() {
+      return (
+        <div className="max-w-6xl mx-auto p-4 grid md:grid-cols-[300px_1fr] gap-6 mt-4 animate-pulse">
+          <div className="space-y-4">
+            <div className="h-6 bg-surfaceLight rounded w-1/2"></div>
+            <div className="h-20 bg-surfaceLight rounded"></div>
+            <div className="grid grid-cols-2 gap-3">{Array(6).fill(0).map((_, i) => <div key={i} className="h-14 bg-surfaceLight rounded-lg"></div>)}</div>
+          </div>
+          <div className="space-y-4">
+            <div className="h-28 bg-surfaceLight rounded-xl"></div>
+            <div className="h-40 bg-surfaceLight rounded-xl"></div>
+            <div className="h-48 bg-surfaceLight rounded-xl"></div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── App ───
+    function App() {
+      const [current, setCurrent] = useState(null);
+      const [forecast, setForecast] = useState(null);
+      const [aqi, setAqi] = useState(null);
+      const [alerts, setAlerts] = useState(null);
+      const [units, setUnits] = useState(() => {
+        const saved = loadStorage('atmos_units', null);
+        if (saved) return saved;
+        try { const loc = Intl.DateTimeFormat().resolvedOptions().locale || ''; return loc.startsWith('en-US') ? 'imperial' : 'metric'; } catch (e) { return 'imperial'; }
+      });
+      const [history, setHistory] = useState(() => loadStorage('atmos_history', []));
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [mapExpanded, setMapExpanded] = useState(true);
+      const [coords, setCoords] = useState(null);
+
+      const accent = current ? conditionAccent(current.weather[0].id) : '#94a3b8';
+
+      const fetchWeather = async (lat, lon, name, country) => {
+        if (lat == null || lon == null) {
+          setError('City not found — check spelling or try adding a country code.');
+          return;
+        }
+        setLoading(true);
+        setError(null);
+        setCoords({ lat, lon });
+
+        // Update history
+        const entry = { lat, lon, name, country };
+        const newHist = [entry, ...history.filter(h => h.name !== name || h.country !== country)].slice(0, 5);
+        setHistory(newHist);
+        saveStorage('atmos_history', newHist);
+
+        try {
+          const [currentRes, forecastRes, aqiRes] = await Promise.all([
+            fetch(`${BASE}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`),
+            fetch(`${BASE}/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`),
+            fetch(`${BASE}/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`),
+          ]);
+
+          if (!currentRes.ok) throw new Error('City not found — check spelling or try adding a country code.');
+          const currentData = await currentRes.json();
+          const forecastData = await forecastRes.json();
+          const aqiData = await aqiRes.json();
+          setCurrent(currentData);
+          setForecast(forecastData);
+          setAqi(aqiData);
+
+          // Try NWS alerts for US locations
+          if (currentData.sys.country === 'US') {
+            try {
+              const nwsRes = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}`, {
+                headers: { 'User-Agent': 'Atmos Weather App' }
+              });
+              if (nwsRes.ok) {
+                const nwsData = await nwsRes.json();
+                const mapped = (nwsData.features || []).map(f => ({
+                  event: f.properties.event,
+                  severity: f.properties.severity,
+                  sender: f.properties.senderName,
+                  start: f.properties.effective ? Math.floor(new Date(f.properties.effective).getTime() / 1000) : null,
+                  end: f.properties.expires ? Math.floor(new Date(f.properties.expires).getTime() / 1000) : null,
+                  description: f.properties.description,
+                }));
+                setAlerts(mapped);
+              } else {
+                setAlerts([]);
+              }
+            } catch (err) { console.error('NWS alerts error:', err); setAlerts([]); }
+          } else {
+            setAlerts([]);
+          }
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleGeolocate = () => {
+        if (!navigator.geolocation) { setError('Geolocation is not supported by your browser.'); return; }
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { latitude, longitude } = pos.coords;
+            try {
+              const res = await fetch(`${BASE}/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${API_KEY}`);
+              const data = await res.json();
+              if (data.length > 0) {
+                fetchWeather(latitude, longitude, data[0].name, data[0].country);
+              }
+            } catch (err) { console.error('Reverse geocode error:', err); setError('Could not determine your location.'); }
+          },
+          () => { setError('Location access denied. Please search manually.'); }
+        );
+      };
+
+      return (
+        <div className="min-h-screen relative overflow-hidden">
+          {current && <WeatherBg conditionId={current.weather[0].id} />}
+
+          <SearchBar
+            onSearch={fetchWeather}
+            onGeolocate={handleGeolocate}
+            units={units}
+            setUnits={setUnits}
+            history={history}
+            accent={accent}
+          />
+
+          {error && (
+            <div className="max-w-6xl mx-auto px-4 mt-4">
+              <div className="bg-red-900/30 border border-red-700/40 rounded-xl px-4 py-3 text-red-400 text-sm flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                {error}
+              </div>
+            </div>
+          )}
+
+          {loading && <Skeleton />}
+
+          {!loading && !current && !error && (
+            <div className="max-w-6xl mx-auto px-4 flex flex-col items-center justify-center mt-32 text-center">
+              <div className="text-6xl mb-4 opacity-20">🌤</div>
+              <h2 className="font-display text-2xl font-bold text-gray-500 mb-2">Welcome to Atmos</h2>
+              <p className="text-gray-600 text-sm max-w-md">Search for a city or use your location to get started with real-time weather data, forecasts, and alerts.</p>
+            </div>
+          )}
+
+          {!loading && current && (
+            <main className="max-w-6xl mx-auto p-4 relative z-10">
+              <AlertBanner alerts={alerts} />
+
+              <div className="grid md:grid-cols-[300px_1fr] gap-6">
+                {/* Left column */}
+                <div className="space-y-4">
+                  <CurrentWeather data={current} units={units} accent={accent} />
+                </div>
+
+                {/* Right column */}
+                <div className="space-y-6">
+                  <HourlyForecast forecast={forecast} units={units} tz={current.timezone} />
+                  <DailyForecast forecast={forecast} units={units} />
+                  <TempChart forecast={forecast} units={units} />
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <AqiCard aqi={aqi} />
+                    <SunArc current={current} />
+                    <WearSuggestion current={current} units={units} />
+                  </div>
+
+                  {coords && (
+                    <WeatherMap lat={coords.lat} lon={coords.lon} expanded={mapExpanded} setExpanded={setMapExpanded} />
+                  )}
+                </div>
+              </div>
+            </main>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
