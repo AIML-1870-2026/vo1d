@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEO Close Approach Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <header id="site-header">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-glyph">◎</span>
+          <span class="logo-text">NEO Tracker</span>
+        </div>
+        <nav class="tab-nav" role="tablist">
+          <button class="tab-btn active" data-tab="globe" role="tab" aria-selected="true">
+            <span class="tab-icon" aria-hidden="true">🌍</span>Globe View
+          </button>
+          <button class="tab-btn" data-tab="approaches" role="tab" aria-selected="false">
+            <span class="tab-icon" aria-hidden="true">📡</span>Close Approaches
+          </button>
+          <button class="tab-btn" data-tab="sentry" role="tab" aria-selected="false">
+            <span class="tab-icon" aria-hidden="true">⚠</span>Sentry Watch
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+
+      <!-- ================================================ -->
+      <!-- TAB 1: GLOBE VIEW                                -->
+      <!-- ================================================ -->
+      <section id="tab-globe" class="tab-panel" role="tabpanel">
+
+        <div id="globe-wrap">
+          <div id="globe-el"></div>
+
+          <div id="globe-loading" class="globe-overlay">
+            <div class="spinner"></div>
+            <p>Loading NEO data…</p>
+          </div>
+
+          <div id="globe-error" class="globe-overlay hidden">
+            <div class="error-box">
+              <span class="error-icon">⚠</span>
+              <p id="globe-error-msg"></p>
+            </div>
+          </div>
+
+          <div id="globe-legend" class="legend hidden">
+            <div class="legend-title">Legend</div>
+            <div class="legend-item"><span class="legend-dot pha"></span>Potentially Hazardous</div>
+            <div class="legend-item"><span class="legend-dot safe"></span>Non-Hazardous</div>
+            <div class="legend-item"><span class="legend-dot moon"></span>Moon (1 LD ref.)</div>
+            <div class="legend-scale">Altitude: √dist<sub>LD</sub> × 0.3</div>
+            <div class="legend-scale">Longitude: time of closest approach<br>Latitude: ±30° ecliptic band (approx.)</div>
+          </div>
+
+          <div id="globe-count" class="count-badge hidden"></div>
+
+          <div id="globe-tooltip" class="globe-tooltip hidden"></div>
+        </div>
+
+        <aside id="detail-panel" class="detail-panel hidden" aria-label="Asteroid detail">
+          <button id="close-detail" class="close-btn" aria-label="Close detail panel">✕</button>
+          <div id="detail-content"></div>
+        </aside>
+
+      </section>
+
+      <!-- ================================================ -->
+      <!-- TAB 2: CLOSE APPROACHES                          -->
+      <!-- ================================================ -->
+      <section id="tab-approaches" class="tab-panel hidden" role="tabpanel">
+        <div class="scroll-content">
+
+          <div class="section-header">
+            <h2>Close Approaches</h2>
+            <div class="source-toggle">
+              <label class="radio-label">
+                <input type="radio" name="datasource" value="neows" checked>
+                <span>This Week (NeoWs)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="datasource" value="sbdb">
+                <span>Historical / Future (SBDB)</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="sbdb-date-controls" class="sbdb-controls hidden">
+            <label>
+              <span>From</span>
+              <input type="date" id="sbdb-from">
+            </label>
+            <label>
+              <span>To</span>
+              <input type="date" id="sbdb-to">
+            </label>
+            <button id="sbdb-fetch-btn" class="btn-primary">Fetch</button>
+          </div>
+
+          <div id="approaches-loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading close approaches…</p>
+          </div>
+
+          <div id="approaches-error" class="error-box hidden"></div>
+
+          <div id="summary-row" class="summary-row hidden">
+            <div class="stat-card">
+              <div class="stat-label">Total Approaches</div>
+              <div id="stat-total" class="stat-val">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Closest</div>
+              <div id="stat-closest-val" class="stat-val">—</div>
+              <div id="stat-closest-name" class="stat-name">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Largest</div>
+              <div id="stat-largest-val" class="stat-val">—</div>
+              <div id="stat-largest-name" class="stat-name">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Fastest</div>
+              <div id="stat-fastest-val" class="stat-val">—</div>
+              <div id="stat-fastest-name" class="stat-name">—</div>
+            </div>
+          </div>
+
+          <div id="filter-row" class="filter-row hidden">
+            <div class="filter-group">
+              <label for="filter-dist">Distance</label>
+              <select id="filter-dist">
+                <option value="all">All</option>
+                <option value="1">Within 1 LD</option>
+                <option value="5">Within 5 LD</option>
+                <option value="10">Within 10 LD</option>
+                <option value="20">Within 20 LD</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="filter-size">Min Size</label>
+              <select id="filter-size">
+                <option value="0">All Sizes</option>
+                <option value="100">&gt;100 m</option>
+                <option value="500">&gt;500 m</option>
+                <option value="1000">&gt;1 km</option>
+              </select>
+            </div>
+            <div class="filter-group filter-check">
+              <label class="check-label">
+                <input type="checkbox" id="filter-hazardous">
+                <span>Hazardous Only</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="table-wrap" class="table-wrap hidden">
+            <table id="approaches-table">
+              <thead>
+                <tr>
+                  <th class="sortable" data-col="name">Name<span class="sort-icon"></span></th>
+                  <th class="sortable" data-col="date">Date<span class="sort-icon"></span></th>
+                  <th class="sortable" data-col="dist">Miss Distance<span class="sort-icon"></span></th>
+                  <th class="sortable" data-col="diameter">Diameter<span class="sort-icon"></span></th>
+                  <th class="sortable" data-col="velocity">Velocity<span class="sort-icon"></span></th>
+                  <th>Hazardous</th>
+                </tr>
+              </thead>
+              <tbody id="approaches-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================ -->
+      <!-- TAB 3: SENTRY WATCH LIST                         -->
+      <!-- ================================================ -->
+      <section id="tab-sentry" class="tab-panel hidden" role="tabpanel">
+        <div class="scroll-content">
+
+          <div class="section-header">
+            <h2>Sentry Watch List</h2>
+          </div>
+
+          <div class="sentry-explainer">
+            <p>
+              <strong>Sentry</strong> is NASA/JPL's automated collision monitoring system. It scans
+              the catalog of known near-Earth asteroids and computes impact probabilities over the
+              next century.
+            </p>
+            <div class="scale-info">
+              <div class="scale-pill">
+                <strong>Palermo Scale</strong> — compares impact probability &amp; energy to a
+                background hazard level. Values &gt; 0 merit attention; values &gt; −2 warrant
+                special study.
+              </div>
+              <div class="scale-pill">
+                <strong>Torino Scale</strong> (0–10) — public communication of impact risk.
+                0 = no hazard; 10 = certain devastating collision.
+              </div>
+            </div>
+          </div>
+
+          <div id="sentry-loading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading Sentry data…</p>
+          </div>
+
+          <div id="sentry-error" class="error-box hidden"></div>
+
+          <div id="sentry-controls" class="filter-row hidden">
+            <div class="filter-group">
+              <label for="sentry-sort">Sort by</label>
+              <select id="sentry-sort">
+                <option value="ps">Palermo Scale</option>
+                <option value="ip">Impact Probability</option>
+                <option value="diameter">Diameter</option>
+                <option value="n_imp">Potential Impacts</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="sentry-torino">Torino ≥</label>
+              <select id="sentry-torino">
+                <option value="0">All</option>
+                <option value="1">1 (Normal)</option>
+                <option value="2">2 (Attention)</option>
+                <option value="5">5 (Threatening)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="sentry-diam">Min Diameter</label>
+              <select id="sentry-diam">
+                <option value="0">Any</option>
+                <option value="100">&gt;100 m</option>
+                <option value="500">&gt;500 m</option>
+                <option value="1000">&gt;1 km</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="sentry-grid" class="sentry-grid hidden"></div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/globe.gl"></script>
+  <script src="app.js"></script>
+</body>
+</html>
