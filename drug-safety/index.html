@@ -26,7 +26,7 @@
         <span class="logo-icon">💊</span>
         <span class="logo-text">CompaRx</span>
       </div>
-      <p class="tagline">Compare drug safety profiles side by side</p>
+      <p class="tagline">Drug safety comparison &amp; class explorer</p>
       <button class="btn-help" data-modal="how-to-read">ⓘ How to Read This Data</button>
     </div>
   </header>
@@ -97,32 +97,42 @@
     </div>
 
     <!-- Drug Class Explorer -->
-    <section class="class-explorer-section" aria-label="Drug class explorer" id="class-explorer">
-      <div class="class-explorer-header">
-        <div>
-          <h2 class="class-explorer-title">Drug Class Explorer</h2>
-          <p class="class-explorer-sub">Browse medications by pharmacological class and load any two into the comparator.</p>
+    <section class="ce-section" aria-label="Drug class explorer" id="class-explorer">
+      <div class="ce-header">
+        <div class="ce-header-text">
+          <h2 class="ce-title">Drug Class Explorer</h2>
+          <p class="ce-subtitle">Learn about pharmacological drug classes and the medications within them. Click any drug to see its FDA label information.</p>
         </div>
       </div>
 
-      <!-- Class selector tabs -->
-      <div class="class-tabs" id="class-tabs" role="tablist" aria-label="Drug classes"></div>
+      <!-- Class pill tabs -->
+      <div class="ce-class-tabs" id="ce-class-tabs" role="tablist" aria-label="Drug classes"></div>
 
-      <!-- Drug grid -->
-      <div class="class-grid-wrap">
-        <div class="class-grid" id="class-grid" aria-live="polite">
-          <div class="class-grid-empty">Select a drug class above to browse medications.</div>
-        </div>
-        <div class="class-grid-loading hidden" id="class-grid-loading">
-          <div class="skeleton-block"></div><div class="skeleton-block"></div><div class="skeleton-block"></div>
-          <div class="skeleton-block"></div><div class="skeleton-block"></div><div class="skeleton-block"></div>
+      <!-- Main content area: class overview + drug list + drug detail -->
+      <div class="ce-body hidden" id="ce-body">
+
+        <!-- Class overview panel -->
+        <div class="ce-overview" id="ce-overview"></div>
+
+        <!-- Drug list + detail split -->
+        <div class="ce-lower">
+          <!-- Drug list -->
+          <div class="ce-drug-list" id="ce-drug-list" role="list" aria-label="Drugs in this class"></div>
+
+          <!-- Drug detail panel -->
+          <div class="ce-detail" id="ce-detail">
+            <div class="ce-detail-empty">
+              <span class="ce-detail-empty-icon">👆</span>
+              <p>Select a medication from the list to see its FDA label information.</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Selected drugs bar -->
-      <div class="class-selected-bar hidden" id="class-selected-bar">
-        <div class="class-selected-pills" id="class-selected-pills"></div>
-        <button class="btn-compare class-compare-btn" id="class-compare-btn">Compare Selected</button>
+      <!-- Empty state -->
+      <div class="ce-empty-state" id="ce-empty-state">
+        <span class="ce-empty-icon">🔬</span>
+        <p>Select a drug class above to start exploring.</p>
       </div>
     </section>
 

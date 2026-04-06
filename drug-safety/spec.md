@@ -235,7 +235,7 @@ The suggested pair chips are the same ones shown below the search inputs.
 
 ## Footer
 
-- **Disclaimer:** *"CompaRx is an educational tool built for AIML 1870 at the University of Nebraska at Omaha. It is not intended to provide medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional before making decisions about your medications."*
+- **Disclaimer:** *"CompaRx is an educational tool. It is not intended to provide medical advice, diagnosis, or treatment. Always consult a qualified healthcare professional before making decisions about your medications."*
 - **FDA Attribution:** *"This product uses publicly available data from the U.S. Food and Drug Administration (FDA). FDA is not responsible for the product and does not endorse or recommend this or any other product."*
 - **Data source link:** [open.fda.gov](https://open.fda.gov)
 
