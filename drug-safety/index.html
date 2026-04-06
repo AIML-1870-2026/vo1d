@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CompaRx — Drug Safety Explorer</title>
+  <meta name="description" content="Compare drug safety profiles side by side using real FDA data. Powered by OpenFDA." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">💊</span>
+        <span class="logo-text">CompaRx</span>
+      </div>
+      <p class="tagline">Compare drug safety profiles side by side</p>
+      <button class="btn-help" data-modal="how-to-read">ⓘ How to Read This Data</button>
+    </div>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────── -->
+  <main>
+
+    <!-- Search section -->
+    <section class="search-section" aria-label="Drug search">
+      <div class="search-fields">
+        <div class="search-field" id="search-a-wrapper">
+          <input
+            type="text"
+            id="search-a"
+            placeholder="Search for a drug (e.g., Ibuprofen)"
+            autocomplete="off"
+            aria-label="First drug"
+            aria-autocomplete="list"
+            aria-controls="dropdown-a"
+          />
+          <div class="autocomplete-dropdown" id="dropdown-a" role="listbox" aria-label="Drug suggestions"></div>
+        </div>
+
+        <div class="search-vs" aria-hidden="true">vs</div>
+
+        <div class="search-field" id="search-b-wrapper">
+          <input
+            type="text"
+            id="search-b"
+            placeholder="Search a second drug (e.g., Warfarin)"
+            autocomplete="off"
+            aria-label="Second drug"
+            aria-autocomplete="list"
+            aria-controls="dropdown-b"
+          />
+          <div class="autocomplete-dropdown" id="dropdown-b" role="listbox" aria-label="Drug suggestions"></div>
+        </div>
+      </div>
+
+      <div class="chip-row" aria-label="Suggested drug pairs">
+        <span class="chip-label">Try:</span>
+        <button class="chip" data-a="Warfarin" data-b="Ibuprofen">Warfarin + Ibuprofen</button>
+        <button class="chip" data-a="Lisinopril" data-b="Metformin">Lisinopril + Metformin</button>
+        <button class="chip" data-a="Sertraline" data-b="Tramadol">Sertraline + Tramadol</button>
+        <button class="chip" data-a="Atorvastatin" data-b="Amlodipine">Atorvastatin + Amlodipine</button>
+      </div>
+
+      <button class="btn-compare" id="btn-compare" aria-label="Compare selected drugs">
+        Compare
+      </button>
+    </section>
+
+    <!-- Onboarding / empty state -->
+    <div class="onboarding" id="onboarding" role="region" aria-label="Getting started">
+      <div class="onboarding-icon" aria-hidden="true">🔍</div>
+      <h2>Start by searching for two medications above</h2>
+      <p>
+        Compare their safety profiles, adverse event reports, and
+        co-administration data — all from the FDA's public databases.
+      </p>
+      <div class="onboarding-chips" aria-label="Suggested pairs">
+        <span class="onboarding-label">Try a suggested pair:</span>
+        <button class="chip" data-a="Warfarin" data-b="Ibuprofen">Warfarin + Ibuprofen</button>
+        <button class="chip" data-a="Lisinopril" data-b="Metformin">Lisinopril + Metformin</button>
+        <button class="chip" data-a="Sertraline" data-b="Tramadol">Sertraline + Tramadol</button>
+        <button class="chip" data-a="Atorvastatin" data-b="Amlodipine">Atorvastatin + Amlodipine</button>
+      </div>
+    </div>
+
+    <!-- Results area (shown after compare) -->
+    <div class="results-area hidden" id="results-area" role="region" aria-label="Comparison results">
+
+      <!-- Same-drug warning -->
+      <div class="same-drug-warning hidden" id="same-drug-warning" role="alert">
+        ⓘ You're comparing a drug with itself.
+      </div>
+
+      <!-- Tab navigation -->
+      <nav class="tab-nav" id="tab-nav" role="tablist" aria-label="Comparison tabs">
+        <button class="tab-btn active" data-tab="0" role="tab" aria-selected="true" aria-controls="tab-0">
+          📋 Drug Labeling
+        </button>
+        <button class="tab-btn" data-tab="1" role="tab" aria-selected="false" aria-controls="tab-1">
+          📊 Adverse Events
+        </button>
+        <button class="tab-btn" data-tab="2" role="tab" aria-selected="false" aria-controls="tab-2">
+          🔗 Co-Administration
+        </button>
+      </nav>
+
+      <!-- ── Tab 1: Drug Labeling ────────────────────────────────────────── -->
+      <div class="tab-panel" id="tab-0" role="tabpanel" aria-labelledby="tab-btn-0">
+
+        <div class="panel-help-bar">
+          <button class="btn-help-inline" data-modal="drug-labels">ⓘ What Drug Labels Tell You</button>
+          <button class="btn-help-inline" data-modal="warnings">ⓘ Warnings &amp; Contraindications</button>
+          <button class="btn-help-inline" data-modal="interactions">ⓘ Drug Interactions</button>
+        </div>
+
+        <div class="comparison-columns">
+          <!-- Drug A panel -->
+          <div class="drug-panel" id="label-panel-a">
+            <div class="drug-panel-header">
+              <span class="drug-badge drug-badge-a" aria-label="Drug A">A</span>
+              <span class="drug-panel-name" id="label-name-a">—</span>
+            </div>
+            <div class="label-sections" id="label-sections-a" aria-live="polite"></div>
+          </div>
+
+          <!-- Drug B panel -->
+          <div class="drug-panel" id="label-panel-b">
+            <div class="drug-panel-header">
+              <span class="drug-badge drug-badge-b" aria-label="Drug B">B</span>
+              <span class="drug-panel-name" id="label-name-b">—</span>
+            </div>
+            <div class="label-sections" id="label-sections-b" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab 2: Adverse Events ──────────────────────────────────────── -->
+      <div class="tab-panel hidden" id="tab-1" role="tabpanel" aria-labelledby="tab-btn-1">
+
+        <div class="panel-help-bar">
+          <button class="btn-help-inline" data-modal="adverse-events">ⓘ How to Interpret Adverse Event Data</button>
+          <button class="btn-help-inline" data-modal="report-counts">ⓘ Why Report Counts Vary</button>
+        </div>
+
+        <div class="comparison-columns">
+          <!-- Drug A events panel -->
+          <div class="drug-panel" id="events-panel-a">
+            <div class="drug-panel-header">
+              <span class="drug-badge drug-badge-a" aria-label="Drug A">A</span>
+              <span class="drug-panel-name" id="events-name-a">—</span>
+            </div>
+            <h3 class="chart-heading">Top 15 Reported Adverse Events</h3>
+            <div class="chart-container" id="chart-events-a-wrap">
+              <canvas id="chart-events-a"></canvas>
+            </div>
+            <h3 class="chart-heading">Serious Outcome Breakdown</h3>
+            <div class="chart-container chart-container-sm" id="chart-outcomes-a-wrap">
+              <canvas id="chart-outcomes-a"></canvas>
+            </div>
+          </div>
+
+          <!-- Drug B events panel -->
+          <div class="drug-panel" id="events-panel-b">
+            <div class="drug-panel-header">
+              <span class="drug-badge drug-badge-b" aria-label="Drug B">B</span>
+              <span class="drug-panel-name" id="events-name-b">—</span>
+            </div>
+            <h3 class="chart-heading">Top 15 Reported Adverse Events</h3>
+            <div class="chart-container" id="chart-events-b-wrap">
+              <canvas id="chart-events-b"></canvas>
+            </div>
+            <h3 class="chart-heading">Serious Outcome Breakdown</h3>
+            <div class="chart-container chart-container-sm" id="chart-outcomes-b-wrap">
+              <canvas id="chart-outcomes-b"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab 3: Co-Administration ───────────────────────────────────── -->
+      <div class="tab-panel hidden" id="tab-2" role="tabpanel" aria-labelledby="tab-btn-2">
+
+        <div class="panel-help-bar">
+          <button class="btn-help-inline" data-modal="co-admin">ⓘ What Co-Administration Data Means</button>
+        </div>
+
+        <div class="co-admin-panel">
+          <h2 class="co-admin-heading" id="co-admin-heading">
+            When both drugs are reported together
+          </h2>
+
+          <div class="chart-container" id="chart-co-admin-container">
+            <canvas id="chart-co-admin"></canvas>
+          </div>
+
+          <p class="co-admin-total" id="co-admin-total"></p>
+
+          <div id="co-admin-empty" class="hidden co-admin-empty" role="alert">
+            No co-administration reports found for this drug pair. This may mean the combination is uncommon — not that it's safe. Always consult a healthcare professional about medication combinations.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /results-area -->
+
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <p>
+        <strong>Disclaimer:</strong> CompaRx is an educational tool built for AIML 1870 at the
+        University of Nebraska at Omaha. It is not intended to provide medical advice, diagnosis,
+        or treatment. Always consult a qualified healthcare professional before making decisions
+        about your medications.
+      </p>
+      <p>
+        <strong>FDA Attribution:</strong> This product uses publicly available data from the
+        U.S. Food and Drug Administration (FDA). FDA is not responsible for the product and
+        does not endorse or recommend this or any other product.
+      </p>
+      <p>
+        Data source: <a href="https://open.fda.gov" target="_blank" rel="noopener noreferrer">open.fda.gov</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- ── Modal overlay ──────────────────────────────────────────────────── -->
+  <div class="modal-overlay hidden" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      <h2 class="modal-title" id="modal-title"></h2>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ── App scripts (plain scripts, no ES modules — works with file://) ── -->
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/autocomplete.js"></script>
+  <script src="js/modals.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
