@@ -35,13 +35,19 @@
   <main>
 
     <!-- Search section -->
+    <div class="section-label" aria-hidden="true">
+      <span class="section-label-text">Drug Comparator</span>
+      <span class="section-label-line"></span>
+    </div>
+
     <section class="search-section" aria-label="Drug search">
       <div class="search-fields">
         <div class="search-field" id="search-a-wrapper">
+          <span class="search-field-label search-field-label-a">Drug A</span>
           <input
             type="text"
             id="search-a"
-            placeholder="Search for a drug (e.g., Ibuprofen)"
+            placeholder="e.g., Ibuprofen"
             autocomplete="off"
             aria-label="First drug"
             aria-autocomplete="list"
@@ -53,10 +59,11 @@
         <div class="search-vs" aria-hidden="true">vs</div>
 
         <div class="search-field" id="search-b-wrapper">
+          <span class="search-field-label search-field-label-b">Drug B</span>
           <input
             type="text"
             id="search-b"
-            placeholder="Search a second drug (e.g., Warfarin)"
+            placeholder="e.g., Warfarin"
             autocomplete="off"
             aria-label="Second drug"
             aria-autocomplete="list"
@@ -97,6 +104,11 @@
     </div>
 
     <!-- Drug Class Explorer -->
+    <div class="section-label" aria-hidden="true">
+      <span class="section-label-text">Drug Class Explorer</span>
+      <span class="section-label-line"></span>
+    </div>
+
     <section class="ce-section" aria-label="Drug class explorer" id="class-explorer">
       <div class="ce-header">
         <div class="ce-header-text">
