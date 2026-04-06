@@ -96,6 +96,36 @@
       </div>
     </div>
 
+    <!-- Drug Class Explorer -->
+    <section class="class-explorer-section" aria-label="Drug class explorer" id="class-explorer">
+      <div class="class-explorer-header">
+        <div>
+          <h2 class="class-explorer-title">Drug Class Explorer</h2>
+          <p class="class-explorer-sub">Browse medications by pharmacological class and load any two into the comparator.</p>
+        </div>
+      </div>
+
+      <!-- Class selector tabs -->
+      <div class="class-tabs" id="class-tabs" role="tablist" aria-label="Drug classes"></div>
+
+      <!-- Drug grid -->
+      <div class="class-grid-wrap">
+        <div class="class-grid" id="class-grid" aria-live="polite">
+          <div class="class-grid-empty">Select a drug class above to browse medications.</div>
+        </div>
+        <div class="class-grid-loading hidden" id="class-grid-loading">
+          <div class="skeleton-block"></div><div class="skeleton-block"></div><div class="skeleton-block"></div>
+          <div class="skeleton-block"></div><div class="skeleton-block"></div><div class="skeleton-block"></div>
+        </div>
+      </div>
+
+      <!-- Selected drugs bar -->
+      <div class="class-selected-bar hidden" id="class-selected-bar">
+        <div class="class-selected-pills" id="class-selected-pills"></div>
+        <button class="btn-compare class-compare-btn" id="class-compare-btn">Compare Selected</button>
+      </div>
+    </section>
+
     <!-- Results area (shown after compare) -->
     <div class="results-area hidden" id="results-area" role="region" aria-label="Comparison results">
 
@@ -222,8 +252,7 @@
   <footer>
     <div class="footer-inner">
       <p>
-        <strong>Disclaimer:</strong> CompaRx is an educational tool built for AIML 1870 at the
-        University of Nebraska at Omaha. It is not intended to provide medical advice, diagnosis,
+        <strong>Disclaimer:</strong> CompaRx is an educational tool. It is not intended to provide medical advice, diagnosis,
         or treatment. Always consult a qualified healthcare professional before making decisions
         about your medications.
       </p>
@@ -253,6 +282,7 @@
   <script src="js/autocomplete.js"></script>
   <script src="js/modals.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/classexplorer.js"></script>
   <script src="js/app.js"></script>
 
 </body>
