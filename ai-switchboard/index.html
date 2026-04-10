@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM SWITCHBOARD // NEON_TERMINAL v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+/* ── DESIGN TOKENS ─────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --void:    #03030a;
+  --abyss:   #06061a;
+  --deep:    #0a0a22;
+  --surface: #0e0e2c;
+  --raised:  #131336;
+
+  /* Accent palette */
+  --cyan:      #22d3ee;
+  --cyan-soft: rgba(34,211,238,0.18);
+  --cyan-dim:  rgba(34,211,238,0.08);
+  --violet:    #a78bfa;
+  --violet-soft: rgba(167,139,250,0.18);
+  --violet-dim:  rgba(167,139,250,0.08);
+  --rose:      #f472b6;
+  --rose-soft: rgba(244,114,182,0.15);
+  --rose-dim:  rgba(244,114,182,0.07);
+  --emerald:   #34d399;
+  --emerald-soft: rgba(52,211,153,0.15);
+  --emerald-dim:  rgba(52,211,153,0.07);
+  --amber:     #fbbf24;
+  --red:       #f87171;
+  --red-soft:  rgba(248,113,113,0.12);
+
+  /* Text */
+  --t0: #f0f4ff;
+  --t1: #ccd6f6;
+  --t2: #8899cc;
+  --t3: #55668a;
+
+  /* Borders */
+  --b0: rgba(167,139,250,0.25);
+  --b1: rgba(34,211,238,0.2);
+  --b2: rgba(255,255,255,0.06);
+  --b3: rgba(255,255,255,0.03);
+
+  /* Fonts */
+  --f-display: 'Orbitron', monospace;
+  --f-mono:    'Share Tech Mono', monospace;
+  --f-body:    'Rajdhani', sans-serif;
+
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  /* Transitions */
+  --t-fast: 0.15s ease;
+  --t-mid:  0.25s ease;
+  --t-slow: 0.5s ease;
+
+  /* Glows */
+  --glow-cyan:    0 0 16px rgba(34,211,238,0.5),  0 0 40px rgba(34,211,238,0.2);
+  --glow-violet:  0 0 16px rgba(167,139,250,0.5), 0 0 40px rgba(167,139,250,0.2);
+  --glow-rose:    0 0 16px rgba(244,114,182,0.45),0 0 40px rgba(244,114,182,0.18);
+  --glow-emerald: 0 0 14px rgba(52,211,153,0.45), 0 0 36px rgba(52,211,153,0.15);
+  --glow-red:     0 0 14px rgba(248,113,113,0.45),0 0 30px rgba(248,113,113,0.15);
+}
+
+/* ── RESET ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  background: var(--void);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  font-family: var(--f-body);
+  color: var(--t1);
+  padding: 24px 12px 60px;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── NEURAL CANVAS BACKGROUND ──────────────────────────────────────────── */
+#neuralCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* ── AURORA GLOW LAYER ──────────────────────────────────────────────────── */
+.aurora {
+  position: fixed;
+  inset: -30%;
+  width: 160%;
+  height: 160%;
+  background:
+    radial-gradient(ellipse at 25% 15%, rgba(124,58,237,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 85%, rgba(34,211,238,0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 65% 25%, rgba(244,114,182,0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 40% 70%, rgba(167,139,250,0.05) 0%, transparent 40%);
+  animation: auroraShift 28s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes auroraShift {
+  0%   { transform: translate(0,0) scale(1); }
+  25%  { transform: translate(2%,-2%) scale(1.02); }
+  50%  { transform: translate(-1%, 3%) scale(0.99); }
+  75%  { transform: translate(3%, 0%) scale(1.01); }
+  100% { transform: translate(-2%, -1%) scale(1.015); }
+}
+
+/* ── MONITOR WRAP ───────────────────────────────────────────────────────── */
+.monitor-wrap {
+  width: 100%;
+  max-width: 1320px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ambient screen glow behind the bezel */
+.monitor-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -40px;
+  background: radial-gradient(ellipse at center,
+    rgba(167,139,250,0.06) 0%,
+    rgba(34,211,238,0.04) 40%,
+    transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(20px);
+}
+
+/* ── MONITOR BEZEL ──────────────────────────────────────────────────────── */
+.monitor-bezel {
+  background:
+    linear-gradient(160deg, rgba(167,139,250,0.04) 0%, transparent 40%),
+    linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, transparent 30%),
+    var(--abyss);
+  border: 1px solid var(--b0);
+  border-radius: var(--r-xl);
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(167,139,250,0.08),
+    0 40px 80px rgba(0,0,0,0.7),
+    0 0 120px rgba(167,139,250,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 0 80px rgba(0,0,0,0.4);
+}
+
+/* Gradient top accent line */
+.monitor-bezel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(34,211,238,0.6) 20%,
+    rgba(167,139,250,0.8) 50%,
+    rgba(244,114,182,0.6) 80%,
+    transparent 100%);
+  z-index: 10;
+}
+
+/* Scanline overlay */
+.monitor-bezel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.05) 3px,
+    rgba(0,0,0,0.05) 4px
+  );
+  pointer-events: none;
+  z-index: 9;
+  border-radius: inherit;
+}
+
+/* Vignette */
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 50%,
+    rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+  z-index: 8;
+  border-radius: inherit;
+}
+
+/* Corner brackets */
+.corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  z-index: 10;
+  pointer-events: none;
+}
+.corner::before, .corner::after {
+  content: '';
+  position: absolute;
+  background: var(--cyan);
+  opacity: 0.7;
+  animation: cornerPulse 6s ease-in-out infinite;
+}
+.corner::before { width: 100%; height: 1px; }
+.corner::after  { width: 1px; height: 100%; }
+.corner.tl { top: 16px; left: 16px; }
+.corner.tr { top: 16px; right: 16px; transform: scaleX(-1); }
+.corner.bl { bottom: 16px; left: 16px; transform: scaleY(-1); }
+.corner.br { bottom: 16px; right: 16px; transform: scale(-1); }
+@keyframes cornerPulse {
+  0%,100% { opacity: 0.5; }
+  50% { opacity: 1; box-shadow: 0 0 6px var(--cyan); }
+}
+
+.monitor-inner {
+  padding: 28px 32px 36px;
+  position: relative;
+  z-index: 5;
+}
+
+/* ── TITLE BAR ──────────────────────────────────────────────────────────── */
+.title-bar {
+  text-align: center;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  position: relative;
+}
+.title-bar h1 {
+  font-family: var(--f-display);
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  background: linear-gradient(135deg,
+    var(--cyan) 0%,
+    #818cf8 40%,
+    var(--violet) 60%,
+    var(--rose) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(167,139,250,0.4));
+  animation: titleBreath 6s ease-in-out infinite;
+}
+@keyframes titleBreath {
+  0%,100% { filter: drop-shadow(0 0 20px rgba(167,139,250,0.4)); }
+  50%      { filter: drop-shadow(0 0 35px rgba(167,139,250,0.6)) drop-shadow(0 0 60px rgba(34,211,238,0.2)); }
+}
+.title-sub {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  color: var(--t2);
+  letter-spacing: 0.2em;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--emerald);
+  box-shadow: 0 0 8px var(--emerald);
+  animation: dotBlink 3s ease-in-out infinite;
+  display: inline-block;
+}
+@keyframes dotBlink {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.title-rule {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(34,211,238,0.3) 20%,
+    rgba(167,139,250,0.5) 50%,
+    rgba(244,114,182,0.3) 80%,
+    transparent);
+  margin-top: 16px;
+  position: relative;
+}
+.title-rule::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  height: 3px;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--cyan), var(--violet));
+  animation: ruleSweep 8s ease-in-out infinite;
+  filter: blur(1px);
+}
+@keyframes ruleSweep {
+  0%   { left: -40%; opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* ── GLASS CARD MIXIN ───────────────────────────────────────────────────── */
+.glass {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%),
+    rgba(10,10,30,0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-lg);
+}
+
+/* ── API KEY BAR ────────────────────────────────────────────────────────── */
+.api-bar {
+  background:
+    linear-gradient(135deg, rgba(167,139,250,0.04) 0%, transparent 60%),
+    rgba(10,10,26,0.7);
+  border: 1px solid var(--b0);
+  border-radius: var(--r-lg);
+  margin-bottom: 18px;
+  overflow: hidden;
+  transition: box-shadow var(--t-mid);
+}
+.api-bar:hover { box-shadow: 0 0 30px rgba(167,139,250,0.06); }
+.api-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.api-bar-header:hover { background: rgba(167,139,250,0.04); }
+.api-bar-header.open { border-bottom-color: var(--b2); }
+.api-bar-title {
+  font-family: var(--f-display);
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  color: var(--t2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.api-bar-title svg { width: 13px; height: 13px; color: var(--violet); }
+.api-bar-chevron {
+  color: var(--t2);
+  font-size: 0.7rem;
+  transition: transform var(--t-mid), color var(--t-fast);
+}
+.api-bar-chevron.open { transform: rotate(180deg); color: var(--violet); }
+.api-bar-body { display: none; padding: 18px; gap: 14px; flex-direction: row; }
+.api-bar-body.open { display: flex; }
+@media (max-width: 700px) { .api-bar-body { flex-direction: column; } }
+
+.api-key-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.api-key-label {
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  color: var(--t2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.api-key-label svg { width: 11px; height: 11px; color: var(--violet); opacity: 0.7; }
+.lock-note {
+  font-family: var(--f-body);
+  font-size: 0.62rem;
+  color: var(--t3);
+  margin-left: auto;
+  letter-spacing: 0.02em;
+}
+
+.key-input-wrap { display: flex; align-items: center; position: relative; }
+.key-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-sm);
+  padding: 9px 38px 9px 12px;
+  font-family: var(--f-mono);
+  font-size: 0.88rem;
+  color: var(--t0);
+  outline: none;
+  transition: border-color var(--t-mid), box-shadow var(--t-mid), background var(--t-fast);
+  caret-color: var(--cyan);
+  letter-spacing: 0.02em;
+}
+.key-input::placeholder { color: var(--t2); }
+.key-input:hover { border-color: var(--b0); background: var(--raised); }
+.key-input:focus {
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px var(--violet-dim), var(--glow-violet);
+  background: var(--raised);
+}
+.key-input.valid   { border-color: var(--emerald); box-shadow: 0 0 0 2px var(--emerald-dim); }
+.key-input.invalid { border-color: var(--red);     box-shadow: 0 0 0 2px var(--red-soft); }
+
+.key-toggle-btn {
+  position: absolute; right: 10px;
+  background: none; border: none; cursor: pointer;
+  color: var(--t2); padding: 0; display: flex; align-items: center;
+  transition: color var(--t-fast);
+}
+.key-toggle-btn:hover { color: var(--violet); }
+.key-toggle-btn svg { width: 15px; height: 15px; }
+.key-input.masked { -webkit-text-security: disc; }
+
+.key-status {
+  font-family: var(--f-mono);
+  font-size: 0.62rem;
+  height: 13px;
+  letter-spacing: 0.05em;
+}
+.key-status.valid   { color: var(--emerald); }
+.key-status.invalid { color: var(--red); }
+
+/* ── TOOLBAR ────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  background:
+    linear-gradient(90deg, rgba(34,211,238,0.03) 0%, rgba(167,139,250,0.03) 100%),
+    rgba(8,8,22,0.8);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(8px);
+}
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--b2);
+}
+
+/* Segmented pill toggle — shared */
+.seg-group {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: 30px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg-btn {
+  padding: 5px 14px;
+  font-family: var(--f-display);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--t2);
+  transition: all var(--t-mid);
+  white-space: nowrap;
+}
+.seg-btn:hover:not(.seg-active) { color: var(--t1); background: rgba(255,255,255,0.04); }
+
+/* Provider: cyan = OpenAI */
+.seg-active-openai {
+  background: linear-gradient(135deg, var(--cyan-soft), rgba(34,211,238,0.1));
+  color: var(--cyan);
+  box-shadow: 0 0 12px rgba(34,211,238,0.2);
+}
+/* Provider: rose = Anthropic */
+.seg-active-anthropic {
+  background: linear-gradient(135deg, var(--rose-soft), rgba(244,114,182,0.08));
+  color: var(--rose);
+  box-shadow: 0 0 12px rgba(244,114,182,0.18);
+}
+/* Mode: cyan = freeform */
+.seg-active-freeform {
+  background: linear-gradient(135deg, var(--cyan-soft), rgba(34,211,238,0.08));
+  color: var(--cyan);
+  box-shadow: 0 0 10px rgba(34,211,238,0.18);
+}
+/* Mode: emerald = structured */
+.seg-active-structured {
+  background: linear-gradient(135deg, var(--emerald-soft), rgba(52,211,153,0.07));
+  color: var(--emerald);
+  box-shadow: 0 0 10px rgba(52,211,153,0.15);
+}
+
+/* Model dropdown */
+.toolbar-select {
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-sm);
+  padding: 7px 28px 7px 11px;
+  font-family: var(--f-mono);
+  font-size: 0.82rem;
+  color: var(--t0);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6690'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color var(--t-mid), box-shadow var(--t-mid);
+}
+.toolbar-select:hover { border-color: var(--b0); }
+.toolbar-select:focus { border-color: var(--violet); box-shadow: 0 0 0 2px var(--violet-dim); outline: none; }
+
+/* Compare toggle */
+.compare-btn {
+  padding: 6px 14px;
+  font-family: var(--f-display);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  border: 1px solid var(--b2);
+  border-radius: 30px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--t2);
+  transition: all var(--t-mid);
+}
+.compare-btn:hover { color: var(--amber); border-color: rgba(251,191,36,0.3); }
+.compare-btn.active {
+  background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06));
+  color: var(--amber);
+  border-color: rgba(251,191,36,0.4);
+  box-shadow: 0 0 14px rgba(251,191,36,0.15);
+}
+
+/* ── SECTION LABELS ─────────────────────────────────────────────────────── */
+.section-label {
+  font-family: var(--f-display);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--t2);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.section-label::before {
+  content: '';
+  display: inline-block;
+  width: 14px; height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* ── PROMPT SECTION ─────────────────────────────────────────────────────── */
+.prompt-section { margin-bottom: 16px; }
+.prompt-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.example-select {
+  flex: 1; min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-sm);
+  padding: 6px 28px 6px 10px;
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  color: var(--t1);
+  outline: none; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238899cc'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color var(--t-mid);
+}
+.example-select:hover { border-color: var(--b0); color: var(--t0); }
+.example-select:focus { border-color: var(--cyan); outline: none; }
+
+.main-area { display: flex; gap: 16px; align-items: flex-start; }
+@media (max-width: 900px) { .main-area { flex-direction: column; } }
+.prompt-wrap { flex: 1; }
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 130px;
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  font-family: var(--f-mono);
+  font-size: 0.94rem;
+  color: var(--t0);
+  line-height: 1.75;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--t-mid), box-shadow var(--t-mid), background var(--t-fast);
+  caret-color: var(--cyan);
+}
+.prompt-textarea::placeholder { color: var(--t2); }
+.prompt-textarea:hover { border-color: var(--b0); background: var(--raised); }
+.prompt-textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px var(--cyan-dim), 0 0 20px rgba(34,211,238,0.06);
+  background: var(--raised);
+}
+
+/* Schema editor */
+.schema-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.schema-wrap.visible { display: flex; }
+.schema-top { display: flex; align-items: center; gap: 10px; }
+.schema-textarea {
+  width: 100%;
+  min-height: 160px;
+  background: var(--surface);
+  border: 1px solid rgba(52,211,153,0.2);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  font-family: var(--f-mono);
+  font-size: 0.85rem;
+  color: #c6f6e8;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--t-mid), box-shadow var(--t-mid);
+  caret-color: var(--emerald);
+}
+.schema-textarea:focus {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px var(--emerald-dim), var(--glow-emerald);
+}
+.schema-select-styled {
+  background: var(--surface);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: var(--r-sm);
+  padding: 6px 24px 6px 10px;
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  color: var(--emerald);
+  outline: none; cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2334d399'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color var(--t-mid);
+}
+.schema-select-styled:focus { border-color: var(--emerald); }
+
+/* ── SEND BUTTON ────────────────────────────────────────────────────────── */
+.send-wrap { display: flex; justify-content: center; margin: 22px 0 18px; }
+.send-btn {
+  font-family: var(--f-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  padding: 15px 60px;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--violet) 50%, var(--rose) 100%);
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  box-shadow:
+    0 4px 24px rgba(34,211,238,0.25),
+    0 0 40px rgba(167,139,250,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+  animation: sendPulse 4s ease-in-out infinite;
+  transition: transform var(--t-mid), box-shadow var(--t-mid);
+}
+/* Shimmer sweep */
+.send-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  transform: skewX(-20deg);
+  transition: left 0s;
+}
+.send-btn:hover:not(:disabled)::before {
+  left: 150%;
+  transition: left 0.6s ease;
+}
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 32px rgba(34,211,238,0.35),
+    0 0 60px rgba(167,139,250,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.send-btn:active:not(:disabled) { transform: translateY(0); }
+.send-btn:disabled {
+  background: var(--raised);
+  color: var(--t3);
+  box-shadow: none;
+  cursor: not-allowed;
+  animation: none;
+  border: 1px solid var(--b2);
+}
+.send-btn.loading {
+  pointer-events: none;
+  animation: none;
+  background: linear-gradient(135deg, rgba(34,211,238,0.6) 0%, rgba(167,139,250,0.6) 100%);
+}
+@keyframes sendPulse {
+  0%,100% { box-shadow: 0 4px 24px rgba(34,211,238,0.25), 0 0 40px rgba(167,139,250,0.2), inset 0 1px 0 rgba(255,255,255,0.2); }
+  50% { box-shadow: 0 6px 32px rgba(34,211,238,0.35), 0 0 60px rgba(167,139,250,0.3), inset 0 1px 0 rgba(255,255,255,0.2); }
+}
+
+/* Loading dots */
+.loading-dots { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; }
+.loading-dots span {
+  display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotBounce {
+  0%,80%,100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* ── COMPARE SELECTORS ──────────────────────────────────────────────────── */
+.compare-selectors {
+  display: none;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.compare-selectors.visible { display: flex; }
+.cmp-panel-config {
+  flex: 1; min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(10,10,24,0.6);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-md);
+}
+.cmp-panel-tag {
+  font-family: var(--f-display);
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.cmp-panel-tag.a { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(34,211,238,0.2); }
+.cmp-panel-tag.b { background: var(--rose-dim); color: var(--rose); border: 1px solid rgba(244,114,182,0.2); }
+
+/* ── OUTPUT AREA ────────────────────────────────────────────────────────── */
+.output-section { margin-bottom: 14px; }
+.output-row { display: flex; gap: 16px; }
+.output-panel { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 0 2px;
+}
+.panel-model-label {
+  font-family: var(--f-mono); font-size: 0.62rem; color: var(--t2);
+}
+
+.output-box {
+  min-height: 180px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.015) 0%, transparent 40%),
+    var(--deep);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  position: relative;
+}
+/* Top accent line per panel */
+.output-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  opacity: 0.7;
+}
+.output-box.rose-top::before {
+  background: linear-gradient(90deg, var(--rose), var(--violet));
+}
+.output-box-inner {
+  padding: 18px 20px;
+  font-family: var(--f-mono);
+  font-size: 0.92rem;
+  line-height: 1.85;
+  color: var(--t0);
+  max-height: 520px;
+  overflow-y: auto;
+}
+.output-placeholder {
+  color: var(--t3);
+  font-style: normal;
+  font-family: var(--f-mono);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.output-placeholder::before {
+  content: '';
+  display: inline-block;
+  width: 8px; height: 14px;
+  background: var(--violet);
+  opacity: 0.25;
+  animation: cursorBlink 1.2s step-end infinite;
+}
+@keyframes cursorBlink {
+  0%,100% { opacity: 0.25; }
+  50% { opacity: 0; }
+}
+
+/* Response content entrance */
+.response-content { animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Spinner */
+.spin-wrap {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--f-mono); font-size: 0.75rem; color: var(--t2);
+}
+.spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid rgba(167,139,250,0.15);
+  border-top-color: var(--violet);
+  border-right-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Markdown content */
+.md-content h1, .md-content h2, .md-content h3 {
+  font-family: var(--f-display); margin: 14px 0 7px;
+}
+.md-content h1 { font-size: 0.9em; color: var(--cyan); }
+.md-content h2 { font-size: 0.82em; color: var(--violet); }
+.md-content h3 { font-size: 0.75em; color: var(--emerald); }
+.md-content p  { margin: 7px 0; color: var(--t0); }
+.md-content ul, .md-content ol { margin: 7px 0 7px 22px; }
+.md-content li { margin: 4px 0; color: var(--t0); }
+.md-content strong { color: var(--amber); font-weight: 600; }
+.md-content em { color: #c4b5fd; font-style: italic; }
+.md-content a  { color: var(--cyan); text-decoration: underline; }
+.md-content code {
+  background: rgba(34,211,238,0.08);
+  border: 1px solid rgba(34,211,238,0.15);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: var(--f-mono);
+  font-size: 0.88em;
+  color: var(--emerald);
+}
+.md-content pre {
+  background: rgba(3,3,15,0.7);
+  border: 1px solid var(--b2);
+  border-left: 2px solid var(--violet);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 12px 14px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+.md-content pre code { background: none; border: none; padding: 0; color: #a7f3d0; }
+.md-content blockquote {
+  border-left: 2px solid var(--rose);
+  padding-left: 14px;
+  margin: 8px 0;
+  color: var(--t2);
+}
+.md-content table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+.md-content th { color: var(--cyan); border-bottom: 1px solid var(--b1); padding: 6px 10px; text-align: left; font-size: 0.8em; }
+.md-content td { padding: 5px 10px; border-bottom: 1px solid var(--b3); font-size: 0.8em; }
+
+/* JSON syntax */
+.json-output { white-space: pre; overflow-x: auto; font-size: 0.88rem; line-height: 1.65; }
+.json-key    { color: var(--cyan); }
+.json-string { color: #86efac; }
+.json-number { color: var(--rose); }
+.json-bool   { color: var(--amber); }
+.json-null   { color: var(--t2); }
+.json-punct  { color: var(--t2); }
+
+/* Error panel */
+.error-panel {
+  border: 1px solid rgba(248,113,113,0.35);
+  border-left: 3px solid var(--red);
+  background: var(--red-soft);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  color: #fca5a5;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+.error-panel svg { flex-shrink: 0; color: var(--red); margin-top: 1px; }
+
+/* JSON warning */
+.json-warning {
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  color: var(--amber);
+  margin-bottom: 12px;
+}
+
+/* CORS panel */
+.cors-panel {
+  border: 1px solid rgba(244,114,182,0.3);
+  border-left: 3px solid var(--rose);
+  background:
+    linear-gradient(135deg, rgba(244,114,182,0.05) 0%, transparent 60%),
+    rgba(8,4,20,0.7);
+  border-radius: var(--r-md);
+  padding: 20px;
+  line-height: 1.7;
+  backdrop-filter: blur(8px);
+}
+.cors-panel h3 {
+  font-family: var(--f-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--rose);
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cors-panel h3::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--rose);
+  box-shadow: 0 0 8px var(--rose);
+  animation: dotBlink 2s ease-in-out infinite;
+}
+.cors-panel p   { margin: 7px 0; color: var(--t2); font-size: 0.88rem; }
+.cors-panel code {
+  font-family: var(--f-mono);
+  color: var(--rose);
+  background: rgba(244,114,182,0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  border: 1px solid rgba(244,114,182,0.15);
+}
+.cors-panel strong { color: var(--t1); }
+
+/* ── METRICS BAR ────────────────────────────────────────────────────────── */
+.metrics-bar {
+  display: none;
+  background:
+    linear-gradient(90deg, rgba(34,211,238,0.03) 0%, rgba(167,139,250,0.03) 100%),
+    rgba(6,6,18,0.8);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  gap: 0;
+  flex-wrap: wrap;
+  animation: fadeUp 0.3s ease both;
+  margin-top: 10px;
+  backdrop-filter: blur(8px);
+}
+.metrics-bar.visible { display: flex; }
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 18px;
+  border-right: 1px solid var(--b2);
+  min-width: 90px;
+  transition: background var(--t-fast);
+}
+.metric-item:last-child { border-right: none; }
+.metric-item:hover { background: rgba(255,255,255,0.02); border-radius: var(--r-sm); }
+.metric-icon { font-size: 0.85rem; margin-bottom: 2px; opacity: 0.7; }
+.metric-label {
+  font-family: var(--f-display);
+  font-size: 0.42rem;
+  letter-spacing: 0.15em;
+  color: var(--t2);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.metric-value {
+  font-family: var(--f-mono);
+  font-size: 0.88rem;
+  color: var(--cyan);
+  font-weight: 400;
+}
+.metric-value.v-time   { color: var(--amber); }
+.metric-value.v-tokens { color: var(--violet); }
+.metric-value.v-len    { color: var(--emerald); }
+.metric-value.v-cost   { color: var(--rose); }
+
+/* ── DIVIDER ────────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--b2), transparent);
+  margin: 16px 0;
+}
+
+/* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--raised); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--violet); }
+
+/* Select options */
+select option { background: #0e0e2c; color: var(--t1); }
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<canvas id="neuralCanvas"></canvas>
+<div class="aurora"></div>
+
+<div class="monitor-wrap">
+<div class="monitor-bezel">
+  <!-- Corner brackets -->
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+  <div class="vignette"></div>
+
+  <div class="monitor-inner">
+
+    <!-- TITLE BAR -->
+    <div class="title-bar">
+      <h1>LLM SWITCHBOARD</h1>
+      <div class="title-sub">
+        <span class="status-dot"></span>
+        <span>// NEON_TERMINAL v1.0</span>
+        <span class="status-dot" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation-delay:1.5s"></span>
+      </div>
+      <div class="title-rule"></div>
+    </div>
+
+    <!-- API KEY BAR -->
+    <div class="api-bar">
+      <div class="api-bar-header" id="apiBarHeader">
+        <div class="api-bar-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          API KEY CONFIGURATION
+        </div>
+        <span class="api-bar-chevron" id="apiChevron">▼</span>
+      </div>
+      <div class="api-bar-body" id="apiBarBody">
+        <!-- OpenAI -->
+        <div class="api-key-group">
+          <div class="api-key-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            OPENAI KEY
+            <span class="lock-note">&#x1F512; In-memory only — never stored</span>
+          </div>
+          <div class="key-input-wrap">
+            <input type="text" class="key-input masked" id="openaiKey" placeholder="sk-..." autocomplete="off" spellcheck="false">
+            <button class="key-toggle-btn" id="openaiToggle" title="Show/hide key">
+              <svg id="openaiEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="key-status" id="openaiStatus"></div>
+        </div>
+        <!-- Anthropic -->
+        <div class="api-key-group">
+          <div class="api-key-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            ANTHROPIC KEY
+            <span class="lock-note">&#x1F512; In-memory only — never stored</span>
+          </div>
+          <div class="key-input-wrap">
+            <input type="text" class="key-input masked" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+            <button class="key-toggle-btn" id="anthropicToggle" title="Show/hide key">
+              <svg id="anthropicEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="key-status" id="anthropicStatus"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <!-- Provider -->
+      <div class="seg-group" id="providerGroup">
+        <button class="seg-btn seg-active-openai" id="btnOpenAI" onclick="setProvider('openai')">OPENAI</button>
+        <button class="seg-btn" id="btnAnthropic" onclick="setProvider('anthropic')">ANTHROPIC</button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Model -->
+      <select class="toolbar-select" id="modelSelect"></select>
+
+      <div class="toolbar-divider"></div>
+
+      <!-- Mode -->
+      <div class="seg-group" id="modeGroup">
+        <button class="seg-btn seg-active-freeform" id="btnFreeform" onclick="setMode('freeform')">FREEFORM</button>
+        <button class="seg-btn" id="btnStructured" onclick="setMode('structured')">STRUCTURED</button>
+      </div>
+
+      <!-- Compare -->
+      <button class="compare-btn" id="compareBtn" onclick="toggleCompare()">⇔ COMPARE</button>
+    </div>
+
+    <!-- PROMPT + SCHEMA -->
+    <div class="prompt-section">
+      <div class="prompt-top">
+        <div class="section-label">PROMPT</div>
+        <select class="example-select" id="exampleSelect" onchange="loadExample()">
+          <option value="">— load example prompt —</option>
+          <option value="tier">Tier List Generator</option>
+          <option value="build">Build Guide</option>
+          <option value="boss">Boss Strategy Breakdown</option>
+          <option value="loadout">Loadout Optimizer</option>
+          <option value="mechanic">Game Mechanic Explainer</option>
+          <option value="patch">Patch Notes Analyst</option>
+        </select>
+      </div>
+      <div class="main-area" id="mainArea">
+        <div class="prompt-wrap">
+          <textarea class="prompt-textarea" id="promptInput" placeholder="Enter your prompt here... (Ctrl+Enter to send)" rows="5"></textarea>
+        </div>
+        <div class="schema-wrap" id="schemaWrap">
+          <div class="schema-top">
+            <div class="section-label" style="color:var(--emerald)">JSON SCHEMA</div>
+            <select class="schema-select-styled" id="schemaTemplateSelect" onchange="loadSchemaTemplate()">
+              <option value="">— schema template —</option>
+              <option value="weapon">Weapon Tier List Entry</option>
+              <option value="build">Character Build</option>
+              <option value="boss">Boss Fight Analysis</option>
+              <option value="patch">Patch Meta Shift</option>
+            </select>
+          </div>
+          <textarea class="schema-textarea" id="schemaInput" placeholder='{"type":"object","properties":{...}}'></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEND BUTTON -->
+    <div class="send-wrap">
+      <button class="send-btn" id="sendBtn" onclick="handleSend()" disabled title="Enter an API key to begin">
+        &#9654;&nbsp; TRANSMIT
+      </button>
+    </div>
+
+    <!-- COMPARE SELECTORS -->
+    <div class="compare-selectors" id="compareSelectors">
+      <div class="cmp-panel-config">
+        <span class="cmp-panel-tag a">PANEL A</span>
+        <div class="seg-group" style="border-color:rgba(34,211,238,0.2)">
+          <button class="seg-btn seg-active-openai" id="cmpProvA_openai" onclick="setCmpProv('A','openai')">OPENAI</button>
+          <button class="seg-btn" id="cmpProvA_anthropic" onclick="setCmpProv('A','anthropic')">ANTHROPIC</button>
+        </div>
+        <select class="toolbar-select" id="cmpModelA" style="font-size:0.65rem"></select>
+      </div>
+      <div class="cmp-panel-config">
+        <span class="cmp-panel-tag b">PANEL B</span>
+        <div class="seg-group" style="border-color:rgba(244,114,182,0.2)">
+          <button class="seg-btn" id="cmpProvB_openai" onclick="setCmpProv('B','openai')">OPENAI</button>
+          <button class="seg-btn seg-active-anthropic" id="cmpProvB_anthropic" onclick="setCmpProv('B','anthropic')">ANTHROPIC</button>
+        </div>
+        <select class="toolbar-select" id="cmpModelB" style="font-size:0.65rem"></select>
+      </div>
+    </div>
+
+    <!-- OUTPUT AREA -->
+    <div class="output-section">
+
+      <!-- Normal output -->
+      <div id="normalOutput">
+        <div class="section-label">OUTPUT</div>
+        <div class="output-box" id="outputBox">
+          <div class="output-box-inner">
+            <span class="output-placeholder">Awaiting transmission...</span>
+          </div>
+        </div>
+        <div class="metrics-bar" id="metricsBar">
+          <div class="metric-item">
+            <div class="metric-icon">⏱</div>
+            <div class="metric-label">Response Time</div>
+            <div class="metric-value v-time" id="mTime">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-icon">↘</div>
+            <div class="metric-label">Prompt Tokens</div>
+            <div class="metric-value v-tokens" id="mPTok">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-icon">↗</div>
+            <div class="metric-label">Completion Tokens</div>
+            <div class="metric-value v-tokens" id="mCTok">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-icon">∑</div>
+            <div class="metric-label">Total Tokens</div>
+            <div class="metric-value v-tokens" id="mTTok">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-icon">∂</div>
+            <div class="metric-label">Length</div>
+            <div class="metric-value v-len" id="mLen">—</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-icon">◈</div>
+            <div class="metric-label">Est. Cost</div>
+            <div class="metric-value v-cost" id="mCost">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compare output -->
+      <div id="compareOutput" style="display:none">
+        <div class="output-row">
+          <div class="output-panel">
+            <div class="panel-header">
+              <div class="section-label" style="color:var(--cyan)">PANEL A</div>
+              <div class="panel-model-label" id="cmpLabelA">—</div>
+            </div>
+            <div class="output-box" id="outputBoxA">
+              <div class="output-box-inner">
+                <span class="output-placeholder">Awaiting transmission...</span>
+              </div>
+            </div>
+            <div class="metrics-bar" id="metricsBarA" style="display:none;flex-direction:row">
+              <div class="metric-item"><div class="metric-label">TIME</div><div class="metric-value v-time" id="mTimeA">—</div></div>
+              <div class="metric-item"><div class="metric-label">TOKENS</div><div class="metric-value v-tokens" id="mTokA">—</div></div>
+              <div class="metric-item"><div class="metric-label">CHARS</div><div class="metric-value v-len" id="mLenA">—</div></div>
+              <div class="metric-item"><div class="metric-label">COST</div><div class="metric-value v-cost" id="mCostA">—</div></div>
+            </div>
+          </div>
+          <div class="output-panel">
+            <div class="panel-header">
+              <div class="section-label" style="color:var(--rose)">PANEL B</div>
+              <div class="panel-model-label" id="cmpLabelB">—</div>
+            </div>
+            <div class="output-box rose-top" id="outputBoxB">
+              <div class="output-box-inner">
+                <span class="output-placeholder">Awaiting transmission...</span>
+              </div>
+            </div>
+            <div class="metrics-bar" id="metricsBarB" style="display:none;flex-direction:row">
+              <div class="metric-item"><div class="metric-label">TIME</div><div class="metric-value v-time" id="mTimeB">—</div></div>
+              <div class="metric-item"><div class="metric-label">TOKENS</div><div class="metric-value v-tokens" id="mTokB">—</div></div>
+              <div class="metric-item"><div class="metric-label">CHARS</div><div class="metric-value v-len" id="mLenB">—</div></div>
+              <div class="metric-item"><div class="metric-label">COST</div><div class="metric-value v-cost" id="mCostB">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /output-section -->
+  </div><!-- /monitor-inner -->
+</div><!-- /monitor-bezel -->
+</div><!-- /monitor-wrap -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   NEURAL NETWORK CANVAS BACKGROUND
+═══════════════════════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('neuralCanvas');
+  const ctx = canvas.getContext('2d');
+  const N = 70;
+  let pts = [];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function init() {
+    pts = [];
+    for (let i = 0; i < N; i++) {
+      pts.push({
+        x:  Math.random() * canvas.width,
+        y:  Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        r:  Math.random() * 1.8 + 0.8,
+        hue: Math.random() < 0.55 ? 193 : 263, // cyan or violet
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const now = Date.now() / 1000;
+
+    // Connections
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x;
+        const dy = pts[i].y - pts[j].y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < 22500) { // 150px
+          const alpha = (1 - Math.sqrt(d2)/150) * 0.18;
+          const g = ctx.createLinearGradient(pts[i].x, pts[i].y, pts[j].x, pts[j].y);
+          g.addColorStop(0, `hsla(${pts[i].hue},80%,70%,${alpha})`);
+          g.addColorStop(1, `hsla(${pts[j].hue},80%,70%,${alpha})`);
+          ctx.beginPath();
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 0.7;
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Particles
+    pts.forEach(p => {
+      const pulse = Math.sin(now * 1.2 + p.phase) * 0.5 + 0.5;
+      const alpha = 0.25 + pulse * 0.45;
+      const r = p.r + pulse * 0.7;
+
+      // Glow
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 5);
+      glow.addColorStop(0, `hsla(${p.hue},90%,72%,${alpha * 0.4})`);
+      glow.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 5, 0, Math.PI * 2);
+      ctx.fillStyle = glow;
+      ctx.fill();
+
+      // Core
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue},90%,78%,${alpha})`;
+      ctx.fill();
+
+      // Move + bounce
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > canvas.width)  p.vx *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => { resize(); init(); });
+  resize(); init(); draw();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════════════════════ */
+const state = {
+  provider: 'openai',
+  mode: 'freeform',
+  compareMode: false,
+  openaiKey: '',
+  anthropicKey: '',
+  cmpProvA: 'openai',
+  cmpProvB: 'anthropic',
+};
+
+const OPENAI_MODELS    = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+const ANTHROPIC_MODELS = ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'];
+
+const TOKEN_PRICES = {
+  'gpt-4o':        { in: 2.50,  out: 10.00 },
+  'gpt-4o-mini':   { in: 0.15,  out: 0.60  },
+  'gpt-4-turbo':   { in: 10.00, out: 30.00 },
+  'gpt-3.5-turbo': { in: 0.50,  out: 1.50  },
+};
+
+const EXAMPLE_PROMPTS = {
+  tier:     'Create a tier list ranking the weapons in [game]. For each weapon, include its tier (S/A/B/C/D), a one-sentence reason, and a recommended playstyle.',
+  build:    'Write a detailed build guide for a [class/character] in [game]. Include stat allocation, key equipment, skill priority, and early/mid/late game strategy.',
+  boss:     'Analyze the boss fight against [boss name] in [game]. Cover the attack patterns, optimal loadout, phase transitions, and common mistakes players make.',
+  loadout:  "Here's my current loadout: [paste loadout]. Analyze its strengths and weaknesses, and suggest specific swaps to improve it for [activity type: PvP/PvE/Raid].",
+  mechanic: "Explain how [mechanic name] works in [game] as if I'm a new player. Include how it interacts with other systems and any hidden depth most players miss.",
+  patch:    'Here are the latest patch notes for [game]: [paste notes]. Summarize the biggest meta shifts, which builds got buffed/nerfed, and what players should change about their playstyle.',
+};
+
+const SCHEMA_TEMPLATES = {
+  weapon: `{
+  "type": "object",
+  "properties": {
+    "weapon_name": { "type": "string" },
+    "tier": { "type": "string", "enum": ["S","A","B","C","D"] },
+    "damage_type": { "type": "string" },
+    "best_for": { "type": "string" },
+    "reason": { "type": "string" }
+  },
+  "required": ["weapon_name","tier","damage_type","best_for","reason"]
+}`,
+  build: `{
+  "type": "object",
+  "properties": {
+    "character_class": { "type": "string" },
+    "game": { "type": "string" },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "primary_stat": { "type": "string" },
+        "secondary_stat": { "type": "string" },
+        "dump_stat": { "type": "string" }
+      }
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "slot": { "type": "string" },
+          "item_name": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "skill_priority": { "type": "array", "items": { "type": "string" } },
+    "playstyle_summary": { "type": "string" }
+  },
+  "required": ["character_class","game","stats","equipment","skill_priority","playstyle_summary"]
+}`,
+  boss: `{
+  "type": "object",
+  "properties": {
+    "boss_name": { "type": "string" },
+    "game": { "type": "string" },
+    "difficulty_rating": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "phase_number": { "type": "integer" },
+          "description": { "type": "string" },
+          "key_attacks": { "type": "array", "items": { "type": "string" } },
+          "strategy": { "type": "string" }
+        }
+      }
+    },
+    "recommended_loadout": { "type": "string" },
+    "common_mistakes": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["boss_name","game","difficulty_rating","phases","recommended_loadout","common_mistakes"]
+}`,
+  patch: `{
+  "type": "object",
+  "properties": {
+    "game": { "type": "string" },
+    "patch_version": { "type": "string" },
+    "buffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string" },
+          "change": { "type": "string" },
+          "impact": { "type": "string", "enum": ["minor","moderate","major","meta-defining"] }
+        }
+      }
+    },
+    "nerfs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string" },
+          "change": { "type": "string" },
+          "impact": { "type": "string", "enum": ["minor","moderate","major","meta-defining"] }
+        }
+      }
+    },
+    "meta_summary": { "type": "string" }
+  },
+  "required": ["game","patch_version","buffs","nerfs","meta_summary"]
+}`,
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════ */
+function init() {
+  populateModels();
+  populateCmpModels('A', 'openai');
+  populateCmpModels('B', 'anthropic');
+  bindKeyInputs();
+  bindApiBarToggle();
+}
+
+function populateModels() {
+  const sel = document.getElementById('modelSelect');
+  sel.innerHTML = '';
+  (state.provider === 'openai' ? OPENAI_MODELS : ANTHROPIC_MODELS).forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+}
+
+function populateCmpModels(panel, provider) {
+  const sel = document.getElementById('cmpModel' + panel);
+  sel.innerHTML = '';
+  (provider === 'openai' ? OPENAI_MODELS : ANTHROPIC_MODELS).forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+  if (panel === 'A') state.cmpProvA = provider;
+  else state.cmpProvB = provider;
+}
+
+function bindApiBarToggle() {
+  document.getElementById('apiBarHeader').addEventListener('click', () => {
+    const body    = document.getElementById('apiBarBody');
+    const chevron = document.getElementById('apiChevron');
+    const header  = document.getElementById('apiBarHeader');
+    const open = body.classList.toggle('open');
+    header.classList.toggle('open', open);
+    chevron.classList.toggle('open', open);
+  });
+}
+
+function bindKeyInputs() {
+  document.getElementById('openaiKey').addEventListener('input', e => {
+    state.openaiKey = e.target.value.trim();
+    validateKey('openai', state.openaiKey);
+    updateSendBtn();
+  });
+  document.getElementById('anthropicKey').addEventListener('input', e => {
+    state.anthropicKey = e.target.value.trim();
+    validateKey('anthropic', state.anthropicKey);
+    updateSendBtn();
+  });
+  document.getElementById('openaiToggle').addEventListener('click', () => toggleKeyVis('openaiKey', 'openaiEye'));
+  document.getElementById('anthropicToggle').addEventListener('click', () => toggleKeyVis('anthropicKey', 'anthropicEye'));
+}
+
+function toggleKeyVis(inputId, eyeId) {
+  const input   = document.getElementById(inputId);
+  const eye     = document.getElementById(eyeId);
+  const masked  = input.classList.toggle('masked');
+  eye.innerHTML = masked
+    ? `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`
+    : `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+}
+
+function validateKey(provider, key) {
+  const input  = document.getElementById(provider === 'openai' ? 'openaiKey' : 'anthropicKey');
+  const status = document.getElementById(provider === 'openai' ? 'openaiStatus' : 'anthropicStatus');
+  if (!key) {
+    input.className = 'key-input';
+    status.textContent = ''; status.className = 'key-status';
+    return null;
+  }
+  const valid = provider === 'openai' ? key.startsWith('sk-') : key.startsWith('sk-ant-');
+  input.className  = 'key-input ' + (valid ? 'valid' : 'invalid');
+  status.className = 'key-status ' + (valid ? 'valid' : 'invalid');
+  status.textContent = valid ? '✓ Key format valid' : '✗ Key format not recognized';
+  return valid;
+}
+
+function updateSendBtn() {
+  const btn = document.getElementById('sendBtn');
+  const hasKey = state.compareMode
+    ? (state.openaiKey || state.anthropicKey)
+    : (state.provider === 'openai' ? state.openaiKey : state.anthropicKey);
+  btn.disabled = !hasKey;
+  btn.title = btn.disabled ? 'Enter an API key to begin' : '';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOGGLES
+═══════════════════════════════════════════════════════════════ */
+function setProvider(p) {
+  state.provider = p;
+  document.getElementById('btnOpenAI').className    = 'seg-btn' + (p === 'openai'    ? ' seg-active-openai'    : '');
+  document.getElementById('btnAnthropic').className = 'seg-btn' + (p === 'anthropic' ? ' seg-active-anthropic' : '');
+  populateModels();
+  updateSendBtn();
+}
+
+function setMode(m) {
+  state.mode = m;
+  document.getElementById('btnFreeform').className  = 'seg-btn' + (m === 'freeform'    ? ' seg-active-freeform'    : '');
+  document.getElementById('btnStructured').className = 'seg-btn' + (m === 'structured' ? ' seg-active-structured' : '');
+  document.getElementById('schemaWrap').classList.toggle('visible', m === 'structured');
+}
+
+function toggleCompare() {
+  state.compareMode = !state.compareMode;
+  document.getElementById('compareBtn').classList.toggle('active', state.compareMode);
+  document.getElementById('normalOutput').style.display  = state.compareMode ? 'none'  : 'block';
+  document.getElementById('compareOutput').style.display = state.compareMode ? 'block' : 'none';
+  document.getElementById('compareSelectors').classList.toggle('visible', state.compareMode);
+  updateSendBtn();
+}
+
+function setCmpProv(panel, provider) {
+  const other = provider === 'openai' ? 'anthropic' : 'openai';
+  document.getElementById(`cmpProv${panel}_openai`).className    = 'seg-btn' + (provider === 'openai'    ? ' seg-active-openai'    : '');
+  document.getElementById(`cmpProv${panel}_anthropic`).className = 'seg-btn' + (provider === 'anthropic' ? ' seg-active-anthropic' : '');
+  populateCmpModels(panel, provider);
+  updateSendBtn();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EXAMPLES & SCHEMAS
+═══════════════════════════════════════════════════════════════ */
+function loadExample() {
+  const val = document.getElementById('exampleSelect').value;
+  if (val && EXAMPLE_PROMPTS[val]) {
+    document.getElementById('promptInput').value = EXAMPLE_PROMPTS[val];
+    document.getElementById('exampleSelect').value = '';
+  }
+}
+
+function loadSchemaTemplate() {
+  const val = document.getElementById('schemaTemplateSelect').value;
+  if (val && SCHEMA_TEMPLATES[val]) {
+    document.getElementById('schemaInput').value = SCHEMA_TEMPLATES[val];
+    document.getElementById('schemaTemplateSelect').value = '';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   API CALL
+═══════════════════════════════════════════════════════════════ */
+async function callOpenAI(apiKey, model, prompt, structured, schema) {
+  const messages = [{ role: 'user', content: prompt }];
+  const body = { model, messages, max_tokens: 2048 };
+  if (structured && schema) {
+    let parsed;
+    try { parsed = JSON.parse(schema); } catch(e) { throw new Error('Invalid JSON schema'); }
+    body.response_format = {
+      type: 'json_schema',
+      json_schema: { name: 'structured_response', strict: true, schema: parsed }
+    };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  let res;
+  try {
+    res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch(e) {
+    clearTimeout(timer);
+    throw new Error(e.name === 'AbortError' ? 'timeout' : 'network');
+  }
+  clearTimeout(timer);
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('auth');
+    if (res.status === 429) throw new Error('rate_limit');
+    if (res.status >= 500) throw new Error('server');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SEND HANDLERS
+═══════════════════════════════════════════════════════════════ */
+async function handleSend() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+  if (state.compareMode) await handleCompare(prompt);
+  else await handleSingle(prompt);
+}
+
+async function handleSingle(prompt) {
+  const model      = document.getElementById('modelSelect').value;
+  const structured = state.mode === 'structured';
+  const schema     = document.getElementById('schemaInput').value.trim();
+
+  setLoading(true);
+  setBoxLoading('outputBox');
+  hideMetrics();
+
+  if (state.provider === 'anthropic') {
+    setBoxContent('outputBox', corsPanel());
+    setLoading(false);
+    return;
+  }
+  if (!state.openaiKey) { setBoxContent('outputBox', errorPanel('Enter an API key to begin')); setLoading(false); return; }
+
+  const t0 = Date.now();
+  try {
+    const data    = await callOpenAI(state.openaiKey, model, prompt, structured, schema);
+    const elapsed = Date.now() - t0;
+    const content = data.choices?.[0]?.message?.content || '';
+    setBoxContent('outputBox', renderResponse(content, structured));
+    renderMetrics(elapsed, data.usage, content, model);
+  } catch(e) {
+    setBoxContent('outputBox', errorPanel(errorMsg(e.message)));
+  }
+  setLoading(false);
+}
+
+async function handleCompare(prompt) {
+  const structured = state.mode === 'structured';
+  const schema     = document.getElementById('schemaInput').value.trim();
+  const modelA = document.getElementById('cmpModelA').value;
+  const modelB = document.getElementById('cmpModelB').value;
+
+  setLoading(true);
+  setBoxLoading('outputBoxA'); setBoxLoading('outputBoxB');
+  document.getElementById('metricsBarA').style.display = 'none';
+  document.getElementById('metricsBarB').style.display = 'none';
+  document.getElementById('cmpLabelA').textContent = state.cmpProvA.toUpperCase() + ' / ' + modelA;
+  document.getElementById('cmpLabelB').textContent = state.cmpProvB.toUpperCase() + ' / ' + modelB;
+
+  const runPanel = async (prov, model, boxId, timId, tokId, lenId, costId, metricsId) => {
+    if (prov === 'anthropic') {
+      setBoxContent(boxId, corsPanel());
+      setMetricNA(timId, tokId, lenId, costId);
+      document.getElementById(metricsId).style.display = 'flex';
+      return;
+    }
+    if (!state.openaiKey) { setBoxContent(boxId, errorPanel('No OpenAI key entered')); return; }
+    const t0 = Date.now();
+    try {
+      const data    = await callOpenAI(state.openaiKey, model, prompt, structured, schema);
+      const elapsed = Date.now() - t0;
+      const content = data.choices?.[0]?.message?.content || '';
+      setBoxContent(boxId, renderResponse(content, structured));
+      renderCompareMetrics(elapsed, data.usage, content, model, timId, tokId, lenId, costId);
+      document.getElementById(metricsId).style.display = 'flex';
+    } catch(e) {
+      setBoxContent(boxId, errorPanel(errorMsg(e.message)));
+    }
+  };
+
+  await Promise.all([
+    runPanel(state.cmpProvA, modelA, 'outputBoxA', 'mTimeA', 'mTokA', 'mLenA', 'mCostA', 'metricsBarA'),
+    runPanel(state.cmpProvB, modelB, 'outputBoxB', 'mTimeB', 'mTokB', 'mLenB', 'mCostB', 'metricsBarB'),
+  ]);
+  setLoading(false);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OUTPUT HELPERS
+═══════════════════════════════════════════════════════════════ */
+function setLoading(on) {
+  const btn = document.getElementById('sendBtn');
+  btn.classList.toggle('loading', on);
+  btn.innerHTML = on
+    ? `<span class="loading-dots"><span></span><span></span><span></span></span>&nbsp; TRANSMITTING`
+    : `&#9654;&nbsp; TRANSMIT`;
+}
+
+function setBoxLoading(boxId) {
+  document.getElementById(boxId).querySelector('.output-box-inner').innerHTML =
+    `<div class="spin-wrap"><div class="spinner"></div><span>Receiving transmission...</span></div>`;
+}
+
+function setBoxContent(boxId, html) {
+  document.getElementById(boxId).querySelector('.output-box-inner').innerHTML =
+    `<div class="response-content">${html}</div>`;
+}
+
+function renderResponse(content, structured) {
+  if (structured) {
+    try {
+      const clean  = content.replace(/^```json\s*/i,'').replace(/\s*```$/,'').trim();
+      const parsed = JSON.parse(clean);
+      return syntaxHighlightJSON(JSON.stringify(parsed, null, 2));
+    } catch(e) {
+      return `<div class="json-warning">⚠ Response is not valid JSON — showing raw text</div>`
+           + `<pre style="white-space:pre-wrap;color:var(--t1)">${escapeHtml(content)}</pre>`;
+    }
+  }
+  return typeof marked !== 'undefined'
+    ? `<div class="md-content">${marked.parse(content)}</div>`
+    : `<pre style="white-space:pre-wrap;color:var(--t1)">${escapeHtml(content)}</pre>`;
+}
+
+function errorPanel(msg) {
+  return `<div class="error-panel">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg><span>${msg}</span></div>`;
+}
+
+function corsPanel() {
+  return `<div class="cors-panel">
+    <h3>CORS_RESTRICTION_DETECTED</h3>
+    <p>Anthropic's API does not permit direct browser-side requests due to Cross-Origin Resource Sharing (CORS) restrictions enforced by the browser's security model.</p>
+    <p>Requests to <code>https://api.anthropic.com</code> are blocked before they leave the browser — this is by design, to prevent key exposure.</p>
+    <p><strong>Workaround:</strong> Route requests through a server-side proxy — a backend endpoint that receives your prompt, forwards it to Anthropic with your key, and returns the response. Any server runtime works: <code>Express</code>, <code>Next.js API routes</code>, <code>FastAPI</code>, <code>Deno</code>, etc.</p>
+  </div>`;
+}
+
+function errorMsg(code) {
+  const map = {
+    auth:       '⚠ Authentication failed — check your API key',
+    rate_limit: '⚠ Rate limited — wait a moment and try again',
+    server:     "⚠ Server error on the provider's end — try again shortly",
+    network:    '⚠ Network error — check your connection',
+    timeout:    '⚠ Request timed out (>30s)',
+  };
+  return map[code] || `⚠ ${escapeHtml(code)}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function syntaxHighlightJSON(json) {
+  const e = json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const h = e.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}\[\],:])/g,
+    m => {
+      if (/^"/.test(m)) return /:$/.test(m) ? `<span class="json-key">${m}</span>` : `<span class="json-string">${m}</span>`;
+      if (/true|false/.test(m)) return `<span class="json-bool">${m}</span>`;
+      if (/null/.test(m))       return `<span class="json-null">${m}</span>`;
+      if (/^[{}\[\]]$/.test(m)) return `<span class="json-punct">${m}</span>`;
+      if (/^[,:]$/.test(m))     return `<span class="json-punct">${m}</span>`;
+      return `<span class="json-number">${m}</span>`;
+    }
+  );
+  return `<pre class="json-output">${h}</pre>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   METRICS
+═══════════════════════════════════════════════════════════════ */
+function hideMetrics() { document.getElementById('metricsBar').classList.remove('visible'); }
+
+function renderMetrics(elapsed, usage, content, model) {
+  const pIn  = usage?.prompt_tokens     ?? Math.round(content.length / 4);
+  const pOut = usage?.completion_tokens ?? Math.round(content.length / 4);
+  const pTot = usage?.total_tokens      ?? (pIn + pOut);
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('mTime').textContent = elapsed + 'ms';
+  document.getElementById('mPTok').textContent = pIn.toLocaleString();
+  document.getElementById('mCTok').textContent = pOut.toLocaleString();
+  document.getElementById('mTTok').textContent = pTot.toLocaleString();
+  document.getElementById('mLen').textContent  = content.length + 'c / ' + words + 'w';
+  document.getElementById('mCost').textContent = calcCost(model, pIn, pOut);
+  document.getElementById('metricsBar').classList.add('visible');
+}
+
+function renderCompareMetrics(elapsed, usage, content, model, timId, tokId, lenId, costId) {
+  const pIn  = usage?.prompt_tokens     ?? Math.round(content.length / 4);
+  const pOut = usage?.completion_tokens ?? Math.round(content.length / 4);
+  document.getElementById(timId).textContent = elapsed + 'ms';
+  document.getElementById(tokId).textContent = ((usage?.total_tokens) ?? (pIn + pOut)).toLocaleString();
+  document.getElementById(lenId).textContent = content.length + 'c';
+  document.getElementById(costId).textContent = calcCost(model, pIn, pOut);
+}
+
+function setMetricNA(timId, tokId, lenId, costId) {
+  [timId, tokId, lenId].forEach(id => document.getElementById(id).textContent = 'N/A');
+  document.getElementById(costId).textContent = 'CORS';
+}
+
+function calcCost(model, pIn, pOut) {
+  const p = TOKEN_PRICES[model];
+  if (!p) return 'N/A';
+  const c = (pIn / 1e6) * p.in + (pOut / 1e6) * p.out;
+  return c < 0.000001 ? '< $0.000001' : '$' + c.toFixed(6);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD
+═══════════════════════════════════════════════════════════════ */
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const btn = document.getElementById('sendBtn');
+    if (!btn.disabled) handleSend();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>
