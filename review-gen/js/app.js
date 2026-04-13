@@ -86,6 +86,11 @@ form.addEventListener('submit', async function (e) {
     apiKeyInput.focus();
     return;
   }
+  if (!apiKey.startsWith('sk-')) {
+    showError('API key looks wrong — it should start with "sk-". Check for extra spaces or missing characters.');
+    apiKeyInput.focus();
+    return;
+  }
 
   const productName        = document.getElementById('productName').value.trim();
   const productDescription = document.getElementById('productDescription').value.trim();
@@ -116,9 +121,13 @@ form.addEventListener('submit', async function (e) {
     outputWrap.hidden = false;
   } catch (err) {
     if (err.name === 'AbortError') {
-      showError('Request timed out after 30 seconds. Check your connection and try again.');
-    } else if (err.message === 'Failed to fetch') {
-      showError('Could not reach OpenAI. Make sure you are connected to the internet and that the page is served over HTTP/HTTPS (not opened as a file://).');
+      showError('Request timed out after 30 s. Check your connection and try again.');
+    } else if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      showError(
+        'Browser blocked the request to OpenAI (TypeError: Failed to fetch). ' +
+        'Most likely cause: a browser extension (ad blocker / privacy shield) is blocking api.openai.com — try disabling extensions and retrying. ' +
+        'If that does not help, check the Console tab in DevTools (F12) for the exact error.'
+      );
     } else {
       showError(err.message);
     }
