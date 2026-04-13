@@ -1,0 +1,415 @@
+/* ── Design tokens ───────────────────────────────────────────────────── */
+:root {
+  --bg:           #fff9d6;
+  --dot:          rgba(255, 200, 0, 0.45);
+
+  --surface:      #ffffff;
+  --raised:       #f5f5f5;
+
+  --ink:          #1a1a1a;
+  --ink-muted:    #555;
+  --ink-light:    #999;
+
+  --border-w:     3px;
+  --shadow:       5px 5px 0 var(--ink);
+  --shadow-sm:    3px 3px 0 var(--ink);
+
+  --red:          #ff6b6b;   /* form card accent + button */
+  --teal:         #4ecdc4;   /* output card accent */
+  --yellow:       #ffd93d;
+  --purple:       #a29bfe;
+
+  --err:          #e84343;
+  --err-bg:       #fff0f0;
+
+  --radius:       12px;
+  --radius-lg:    18px;
+  --trans:        0.12s ease;
+}
+
+/* ── Ensure hidden attribute always hides ────────────────────────────── */
+[hidden] { display: none !important; }
+
+/* ── Reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+
+/* ── Body: polka-dot bg, no page scroll ─────────────────────────────── */
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--dot) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+  color: var(--ink);
+  font-family: 'Nunito', system-ui, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  padding: 14px 16px;
+}
+
+/* ── App wrapper ─────────────────────────────────────────────────────── */
+.app {
+  width: 100%;
+  max-width: 1020px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+header {
+  text-align: center;
+  flex-shrink: 0;
+}
+header h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2rem;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  text-shadow: 3px 3px 0 var(--red);
+}
+header h1 span {
+  color: var(--red);
+  text-shadow: 3px 3px 0 var(--ink);
+}
+header p {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+/* ── Two-column grid ─────────────────────────────────────────────────── */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Card base ───────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+/* ── Form card ───────────────────────────────────────────────────────── */
+.form-card {
+  overflow-y: auto;
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  height: 100%;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field label {
+  font-family: 'Fredoka One', cursive;
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+input[type="text"],
+input[type="password"],
+textarea,
+select {
+  width: 100%;
+  background: var(--raised);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-family: 'Nunito', inherit;
+  font-weight: 700;
+  padding: 8px 12px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-light);
+  font-weight: 600;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--teal);
+  box-shadow: 3px 3px 0 var(--teal);
+}
+
+textarea {
+  resize: none;
+  min-height: 68px;
+  line-height: 1.5;
+}
+
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* ── Aspect ratings ──────────────────────────────────────────────────── */
+.aspects {
+  background: var(--raised);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aspect-row {
+  display: grid;
+  grid-template-columns: 76px 1fr 34px;
+  align-items: center;
+  gap: 10px;
+}
+.aspect-row > span:first-child {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.aspect-row input[type="range"] {
+  width: 100%;
+  height: 7px;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: 99px;
+  background: #e0e0e0;
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+  accent-color: var(--red);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: none;
+}
+.aspect-row input[type="range"]:focus {
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.aspect-val {
+  font-family: 'Fredoka One', cursive;
+  font-size: 0.88rem;
+  color: var(--red);
+  text-align: right;
+}
+
+/* ── Side-by-side field row ──────────────────────────────────────────── */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Submit button ───────────────────────────────────────────────────── */
+.btn-primary {
+  width: 100%;
+  padding: 11px 20px;
+  background: var(--red);
+  color: #fff;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  border: var(--border-w) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform var(--trans), box-shadow var(--trans);
+  margin-top: auto;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 7px 7px 0 var(--ink);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translate(5px, 5px);
+  box-shadow: none;
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Loader ──────────────────────────────────────────────────────────── */
+#loader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 4px 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--ink-muted);
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--raised);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error banner ────────────────────────────────────────────────────── */
+#errorBanner {
+  background: var(--err-bg);
+  border: 2px solid var(--err);
+  border-radius: var(--radius);
+  color: var(--err);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 10px 14px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Output panel ────────────────────────────────────────────────────── */
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Placeholder card ────────────────────────────────────────────────── */
+.placeholder-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: repeating-linear-gradient(
+    -45deg,
+    #ffffff,
+    #ffffff 10px,
+    #fff9d6 10px,
+    #fff9d6 20px
+  );
+}
+.placeholder-content {
+  text-align: center;
+}
+.placeholder-emoji {
+  font-size: 3.2rem;
+  margin-bottom: 10px;
+  display: block;
+  animation: wobble 2.4s ease-in-out infinite;
+}
+@keyframes wobble {
+  0%, 100% { transform: rotate(-6deg) scale(1); }
+  50%       { transform: rotate(6deg)  scale(1.08); }
+}
+.placeholder-content p {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.placeholder-hint {
+  font-size: 0.85rem !important;
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--ink-muted) !important;
+  margin-top: 4px;
+}
+
+/* ── Output card ─────────────────────────────────────────────────────── */
+.output-card {
+  flex: 1;
+  border-color: var(--teal);
+  box-shadow: 5px 5px 0 var(--teal);
+  overflow-y: auto;
+}
+.card-label {
+  font-family: 'Fredoka One', cursive;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--teal);
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-label::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--teal);
+  border-radius: 1px;
+}
+
+/* ── Markdown output ─────────────────────────────────────────────────── */
+#outputBody {
+  color: var(--ink);
+  line-height: 1.65;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+#outputBody h1,
+#outputBody h2,
+#outputBody h3 {
+  font-family: 'Fredoka One', cursive;
+  font-weight: 400;
+  color: var(--ink);
+  margin: 1em 0 0.4em;
+}
+#outputBody h1 { font-size: 1.3rem; }
+#outputBody h2 { font-size: 1.1rem; }
+#outputBody h3 { font-size: 1rem; }
+#outputBody h1:first-child,
+#outputBody h2:first-child,
+#outputBody h3:first-child { margin-top: 0; }
+#outputBody p { margin-bottom: 0.7em; }
+#outputBody ul,
+#outputBody ol { padding-left: 1.4em; margin-bottom: 0.7em; }
+#outputBody li { margin-bottom: 0.2em; }
+#outputBody strong { color: var(--red); }
+#outputBody em { color: var(--ink-muted); }
+#outputBody hr {
+  border: none;
+  border-top: 2px dashed var(--ink-light);
+  margin: 1.2em 0;
+}
+#outputBody blockquote {
+  border-left: 4px solid var(--yellow);
+  background: #fffde7;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 8px 14px;
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+/* ── Mobile: stack vertically and allow scroll ───────────────────────── */
+@media (max-width: 640px) {
+  body { height: auto; overflow: auto; }
+  .content-grid { grid-template-columns: 1fr; }
+  .output-panel { min-height: 300px; }
+  header h1 { font-size: 1.7rem; }
+}

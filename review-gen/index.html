@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- Header -->
+    <header>
+      <h1>Review <span>Generator</span> ✨</h1>
+      <p>Describe a product and get an AI-written review in seconds!</p>
+    </header>
+
+    <!-- Two-column content -->
+    <div class="content-grid">
+
+      <!-- Form card -->
+      <div class="card form-card">
+        <form id="reviewForm" class="form-grid" novalidate>
+
+          <!-- Product Name -->
+          <div class="field">
+            <label for="productName">📦 Product Name</label>
+            <input
+              type="text"
+              id="productName"
+              placeholder="e.g. Sony WH-1000XM5"
+              required
+            >
+          </div>
+
+          <!-- Product Description -->
+          <div class="field">
+            <label for="productDescription">📝 Description</label>
+            <textarea
+              id="productDescription"
+              placeholder="Describe the product — features, category, intended use…"
+              required
+            ></textarea>
+          </div>
+
+          <!-- Aspect Ratings -->
+          <div class="field">
+            <label>⭐ Ratings by Aspect</label>
+            <div class="aspects">
+
+              <div class="aspect-row">
+                <span>💰 Price</span>
+                <input type="range" id="ratingPrice" min="1" max="5" value="4" step="1"
+                  oninput="document.getElementById('ratingPriceVal').textContent = this.value + '/5'">
+                <span id="ratingPriceVal" class="aspect-val">4/5</span>
+              </div>
+
+              <div class="aspect-row">
+                <span>⚙️ Features</span>
+                <input type="range" id="ratingFeatures" min="1" max="5" value="5" step="1"
+                  oninput="document.getElementById('ratingFeaturesVal').textContent = this.value + '/5'">
+                <span id="ratingFeaturesVal" class="aspect-val">5/5</span>
+              </div>
+
+              <div class="aspect-row">
+                <span>👆 Usability</span>
+                <input type="range" id="ratingUsability" min="1" max="5" value="4" step="1"
+                  oninput="document.getElementById('ratingUsabilityVal').textContent = this.value + '/5'">
+                <span id="ratingUsabilityVal" class="aspect-val">4/5</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Tone + Length row -->
+          <div class="field-row">
+
+            <!-- Tone -->
+            <div class="field">
+              <label for="tone">🎭 Tone</label>
+              <select id="tone">
+                <option value="Enthusiastic">Enthusiastic</option>
+                <option value="Balanced" selected>Balanced</option>
+                <option value="Critical">Critical</option>
+                <option value="Humorous">Humorous</option>
+                <option value="Professional">Professional</option>
+              </select>
+            </div>
+
+            <!-- Length -->
+            <div class="field">
+              <label for="length">📏 Length</label>
+              <select id="length">
+                <option value="Short (~150 words)">Short</option>
+                <option value="Medium (~300 words)" selected>Medium</option>
+                <option value="Long (~500 words)">Long</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Model + API Key row -->
+          <div class="field-row">
+
+            <!-- Model -->
+            <div class="field">
+              <label for="model">🤖 Model</label>
+              <select id="model">
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini" selected>GPT-4o Mini</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              </select>
+            </div>
+
+            <!-- API Key -->
+            <div class="field">
+              <label for="apiKeyInput">🔑 API Key</label>
+              <input
+                type="text"
+                id="apiKeyInput"
+                placeholder="sk-…"
+                autocomplete="off"
+                spellcheck="false"
+              >
+            </div>
+
+          </div>
+
+          <!-- Error banner (hidden by default) -->
+          <div id="errorBanner" hidden></div>
+
+          <!-- Loader (hidden by default) -->
+          <div id="loader" hidden>
+            <div class="spinner"></div>
+            <span>Cooking up your review…</span>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit" id="submitBtn" class="btn-primary">
+            ✨ Generate Review!
+          </button>
+
+        </form>
+      </div>
+
+      <!-- Output panel -->
+      <div class="output-panel">
+
+        <!-- Placeholder shown until first review -->
+        <div id="outputPlaceholder" class="card placeholder-card">
+          <div class="placeholder-content">
+            <div class="placeholder-emoji">🤖</div>
+            <p>Your review will appear here!</p>
+            <p class="placeholder-hint">Fill in the form and hit Generate ✨</p>
+          </div>
+        </div>
+
+        <!-- Output card (hidden until a review is ready) -->
+        <div id="outputWrap" class="card output-card" hidden>
+          <div class="card-label">✨ Generated Review</div>
+          <div id="outputBody"></div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
