@@ -1,6 +1,6 @@
 /* ── API ─────────────────────────────────────────────────────────────── */
 
-const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_ENDPOINT = 'https://corsproxy.io/?https://api.openai.com/v1/chat/completions';
 const TIMEOUT_MS = 30000;
 
 async function generateReview({ apiKey, model, productName, productDescription, ratings, tone, length }) {
