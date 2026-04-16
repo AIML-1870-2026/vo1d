@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Science Experiment Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=Lora:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── Gate Screen ──────────────────────────────────────────────────────── -->
+<section id="gate">
+  <div class="gate-card">
+    <div class="gate-flask">
+      <svg viewBox="0 0 60 82" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M22,4 L22,32 L4,62 Q1,75 12,78 L48,78 Q59,75 56,62 L38,32 L38,4 Z"
+              fill="#d4a017" opacity="0.18"/>
+        <path d="M22,4 L22,32 L4,62 Q1,75 12,78 L48,78 Q59,75 56,62 L38,32 L38,4 Z"
+              fill="none" stroke="#a63a2a" stroke-width="2.5" stroke-linejoin="round"/>
+        <line x1="18" y1="4" x2="42" y2="4" stroke="#a63a2a" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="20" cy="60" r="3.5" fill="#a63a2a" opacity="0.45"/>
+        <circle cx="36" cy="68" r="2.5" fill="#2d6b6b" opacity="0.5"/>
+        <circle cx="28" cy="52" r="2" fill="#d4a017" opacity="0.5"/>
+      </svg>
+    </div>
+    <h1>Science Experiment Generator</h1>
+    <p class="tagline">Pick a grade level, list your supplies, and get a complete classroom-ready experiment.</p>
+    <label class="file-label" for="env-input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Upload <code>.env</code> file
+      <input type="file" id="env-input" accept=".env,.txt,text/plain">
+    </label>
+
+    <div class="gate-divider"><span>or</span></div>
+
+    <div class="paste-group">
+      <input type="text" id="api-key-input" placeholder="Paste API key (sk-…)" autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other">
+      <button id="api-key-submit" class="paste-btn">Use Key</button>
+    </div>
+
+    <p class="key-note">Your API key is read in-memory only — never stored, never logged.</p>
+    <div id="gate-error" class="gate-error" hidden></div>
+  </div>
+</section>
+
+<!-- ── Main App ─────────────────────────────────────────────────────────── -->
+<div id="app" class="hidden">
+  <header class="app-header">
+    <div class="header-brand">
+      <svg viewBox="0 0 32 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M11,2 L11,18 L2,36 Q0,42 7,43 L25,43 Q32,42 30,36 L21,18 L21,2 Z"
+              fill="currentColor" opacity="0.2"/>
+        <path d="M11,2 L11,18 L2,36 Q0,42 7,43 L25,43 Q32,42 30,36 L21,18 L21,2 Z"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="8" y1="2" x2="24" y2="2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>Experiment Generator</span>
+    </div>
+    <div class="key-badge">
+      🔬 Key loaded &mdash; <a href="#" id="change-key">Change key</a>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- Input Panel -->
+    <aside class="input-panel">
+      <h2 class="panel-title"><span class="panel-num">①</span> Configure</h2>
+
+      <div class="field-group">
+        <label for="grade">Grade Level</label>
+        <select id="grade">
+          <option value="K-2">K–2 (Kindergarten–2nd)</option>
+          <option value="3-5">3–5 (3rd–5th Grade)</option>
+          <option value="6-8" selected>6–8 (Middle School)</option>
+          <option value="9-12">9–12 (High School)</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label for="supplies">Available Supplies</label>
+        <input type="text" id="supplies" placeholder="baking soda, vinegar, food coloring…">
+        <small>Separate items with commas</small>
+      </div>
+
+      <div class="field-group">
+        <label for="model">Model</label>
+        <select id="model">
+          <option value="gpt-4o-mini" selected>gpt-4o-mini — fast &amp; affordable</option>
+          <option value="gpt-4o">gpt-4o — higher quality</option>
+          <option value="gpt-5">gpt-5 — premium</option>
+        </select>
+      </div>
+
+      <button id="generate-btn" class="generate-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <path d="M5 3l14 9-14 9V3z"/>
+        </svg>
+        Generate Experiment
+      </button>
+    </aside>
+
+    <!-- Results Panel -->
+    <section class="results-panel">
+      <h2 class="panel-title"><span class="panel-num">②</span> Experiment</h2>
+
+      <div id="placeholder" class="results-placeholder">
+        <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M28,4 L28,38 L7,76 Q3,90 15,92 L65,92 Q77,90 73,76 L52,38 L52,4 Z"
+                fill="none" stroke="#c8b89a" stroke-width="2.5" stroke-linejoin="round"/>
+          <line x1="23" y1="4" x2="57" y2="4" stroke="#c8b89a" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <p>Your experiment will appear here.</p>
+      </div>
+
+      <!-- Flask Loader -->
+      <div id="loader" class="flask-loader hidden">
+        <svg class="loader-flask" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <clipPath id="flask-interior">
+              <path d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
+            </clipPath>
+          </defs>
+          <rect class="flask-glass" x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"/>
+          <rect class="flask-liquid" x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"/>
+          <g clip-path="url(#flask-interior)">
+            <circle class="bubble b1" cx="26" cy="100" r="3.5"/>
+            <circle class="bubble b2" cx="48" cy="94" r="2.5"/>
+            <circle class="bubble b3" cx="36" cy="108" r="3"/>
+          </g>
+          <path class="flask-outline"
+                d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
+          <rect class="flask-stopper" x="25" y="0" width="30" height="6" rx="2"/>
+        </svg>
+        <p class="loader-text">Mixing the formula…</p>
+      </div>
+
+      <div id="results" class="results-content hidden"></div>
+
+      <button id="pdf-btn" class="pdf-btn hidden">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        Download as PDF
+      </button>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
