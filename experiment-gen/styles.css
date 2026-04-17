@@ -423,22 +423,31 @@ body {
 
 .loader-flask { width: 100px; height: 150px; }
 
-.flask-glass {
-  fill: rgba(212, 195, 160, 0.12);
+/* liq-level rises vertically: empty → full → jump back → repeat */
+.liq-level {
+  animation: level-rise 3s ease-in-out infinite;
 }
 
-.flask-liquid {
+@keyframes level-rise {
+  0%   { transform: translateY(80px); }
+  70%  { transform: translateY(18px); }
+  85%  { transform: translateY(18px); }
+  100% { transform: translateY(80px); }
+}
+
+/* liq-wave slides horizontally for a sloshing surface + color shift */
+.liq-wave {
   animation:
-    flask-rise  2.4s ease-in-out infinite alternate,
-    flask-color 7s linear infinite;
+    wave-slide  1.6s linear infinite,
+    wave-color  7s   linear infinite;
 }
 
-@keyframes flask-rise {
-  0%   { transform: translateY(75px); }
-  100% { transform: translateY(22px); }
+@keyframes wave-slide {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-40px); }
 }
 
-@keyframes flask-color {
+@keyframes wave-color {
   0%   { fill: #2d6b6b; }
   25%  { fill: #7d3a2a; }
   50%  { fill: #2d4a8a; }

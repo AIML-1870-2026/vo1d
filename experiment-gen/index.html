@@ -130,13 +130,23 @@
               <path d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
             </clipPath>
           </defs>
-          <rect class="flask-glass" x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"/>
-          <rect class="flask-liquid" x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"/>
+          <!-- Glass tint -->
+          <rect x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"
+                fill="rgba(200,230,230,0.1)"/>
+          <!-- Liquid: outer g clips to flask, inner g rises (level), path slides (wave) -->
+          <g clip-path="url(#flask-interior)">
+            <g class="liq-level">
+              <path class="liq-wave"
+                    d="M -80,0 C -70,-8 -60,8 -50,0 C -40,-8 -30,8 -20,0 C -10,-8 0,8 10,0 C 20,-8 30,8 40,0 C 50,-8 60,8 70,0 C 80,-8 90,8 100,0 C 110,-8 120,8 130,0 C 140,-8 150,8 160,0 L 160,200 L -80,200 Z"/>
+            </g>
+          </g>
+          <!-- Bubbles -->
           <g clip-path="url(#flask-interior)">
             <circle class="bubble b1" cx="26" cy="100" r="3.5"/>
             <circle class="bubble b2" cx="48" cy="94" r="2.5"/>
             <circle class="bubble b3" cx="36" cy="108" r="3"/>
           </g>
+          <!-- Flask outline -->
           <path class="flask-outline"
                 d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
           <rect class="flask-stopper" x="25" y="0" width="30" height="6" rx="2"/>
