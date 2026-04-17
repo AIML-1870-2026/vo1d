@@ -264,23 +264,38 @@ body {
 /* ── App Main Layout ───────────────────────────────────────────────────── */
 .app-main {
   display: flex;
-  min-height: calc(100vh - 57px);
+  height: calc(100vh - 57px);
+  overflow: hidden;
 }
 
 /* ── Input Panel ───────────────────────────────────────────────────────── */
 .input-panel {
   width: 340px;
   flex-shrink: 0;
-  padding: 2rem 1.5rem;
   background: #fffdf7;
   border-right: 2px solid var(--cream-border);
   display: flex;
   flex-direction: column;
-  gap: 1.4rem;
-  position: sticky;
-  top: 57px;
-  max-height: calc(100vh - 57px);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Scrollable area inside sidebar */
+.panel-scroll {
+  flex: 1;
   overflow-y: auto;
+  padding: 2rem 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+/* Pinned footer — generate button always visible */
+.panel-footer {
+  flex-shrink: 0;
+  padding: 1rem 1.5rem;
+  border-top: 2px solid var(--cream-dark);
+  background: #fffdf7;
 }
 
 .panel-title {
@@ -367,7 +382,6 @@ body {
   border-radius: 3px;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-  margin-top: auto;
 }
 
 .generate-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -388,6 +402,8 @@ body {
 /* ── Results Panel ─────────────────────────────────────────────────────── */
 .results-panel {
   flex: 1;
+  height: 100%;
+  overflow-y: auto;
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -643,19 +659,30 @@ body {
 
 .worksheet-btn:active { transform: translateY(0); }
 
-/* ── Difficulty / Time blockquote ─────────────────────────────────────── */
-.results-content blockquote {
-  margin: 0.3rem 0 1.25rem;
-  padding: 0.5rem 1rem;
-  background: var(--cream-dark);
-  border-left: 4px solid var(--mustard);
-  border-radius: 0 3px 3px 0;
-  font-size: 0.88rem;
-  color: var(--brown-mid);
-  line-height: 1.6;
+/* ── Experiment Meta Bar (difficulty + time) ──────────────────────────── */
+.exp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.results-content blockquote p { margin: 0; }
+.meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 3px;
+  font-family: var(--ff-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.diff-easy   { background: #d4f0e8; color: #1a5c46; border: 1.5px solid #8ecfb8; }
+.diff-med    { background: #fdf2d0; color: #7a5200; border: 1.5px solid #e8c050; }
+.diff-hard   { background: #fce8e6; color: #7d1a10; border: 1.5px solid #e0918a; }
+.meta-time   { background: var(--cream-dark); color: var(--brown-mid); border: 1.5px solid var(--cream-border); }
 
 /* ── Supplies Picker ──────────────────────────────────────────────────── */
 .supplies-picker { display: flex; flex-direction: column; gap: 0; }
@@ -724,7 +751,6 @@ body {
 .history-section {
   border-top: 2px solid var(--cream-dark);
   padding-top: 1rem;
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -798,16 +824,18 @@ body {
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  .app-main { flex-direction: column; }
+  .app-main { flex-direction: column; height: auto; overflow: visible; }
 
   .input-panel {
     width: 100%;
+    height: auto;
     border-right: none;
     border-bottom: 2px solid var(--cream-border);
-    padding: 1.25rem;
   }
 
-  .results-panel { padding: 1.25rem; }
+  .panel-scroll { max-height: 60vh; }
+
+  .results-panel { height: auto; padding: 1.25rem; }
 
   .app-header { padding: 0.6rem 1rem; }
   .header-brand span { font-size: 1rem; }

@@ -74,60 +74,64 @@
 
     <!-- Input Panel -->
     <aside class="input-panel">
-      <h2 class="panel-title"><span class="panel-num">①</span> Configure</h2>
+      <div class="panel-scroll">
+        <h2 class="panel-title"><span class="panel-num">①</span> Configure</h2>
 
-      <div class="field-group">
-        <label for="grade">Grade Level</label>
-        <select id="grade">
-          <option value="K-2">K–2 (Kindergarten–2nd)</option>
-          <option value="3-5">3–5 (3rd–5th Grade)</option>
-          <option value="6-8" selected>6–8 (Middle School)</option>
-          <option value="9-12">9–12 (High School)</option>
-        </select>
-      </div>
+        <div class="field-group">
+          <label for="grade">Grade Level</label>
+          <select id="grade">
+            <option value="K-2">K–2 (Kindergarten–2nd)</option>
+            <option value="3-5">3–5 (3rd–5th Grade)</option>
+            <option value="6-8" selected>6–8 (Middle School)</option>
+            <option value="9-12">9–12 (High School)</option>
+          </select>
+        </div>
 
-      <!-- Supplies Picker -->
-      <div class="supplies-picker">
-        <button class="picker-toggle" id="picker-toggle" type="button">
-          <span>Common Supplies</span>
+        <!-- Supplies Picker -->
+        <div class="supplies-picker">
+          <button class="picker-toggle" id="picker-toggle" type="button">
+            <span>Common Supplies</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div id="picker-body" class="picker-body hidden"></div>
+        </div>
+
+        <div class="field-group">
+          <label for="supplies">Available Supplies</label>
+          <input type="text" id="supplies" placeholder="baking soda, vinegar, food coloring…">
+          <small>Select from above or type and separate with commas</small>
+        </div>
+
+        <div class="field-group">
+          <label for="model">Model</label>
+          <select id="model">
+            <option value="gpt-4o-mini" selected>gpt-4o-mini — fast &amp; affordable</option>
+            <option value="gpt-4o">gpt-4o — higher quality</option>
+            <option value="gpt-5">gpt-5 — premium</option>
+          </select>
+        </div>
+
+        <!-- Session History -->
+        <div class="history-section">
+          <div class="history-header">
+            <span class="history-title">Session History</span>
+            <span class="history-count hidden" id="history-count">0</span>
+          </div>
+          <div id="history-list" class="history-list">
+            <p class="history-empty">No experiments generated yet.</p>
+          </div>
+        </div>
+      </div><!-- end .panel-scroll -->
+
+      <div class="panel-footer">
+        <button id="generate-btn" class="generate-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
+            <path d="M5 3l14 9-14 9V3z"/>
           </svg>
+          Generate Experiment
         </button>
-        <div id="picker-body" class="picker-body hidden"></div>
-      </div>
-
-      <div class="field-group">
-        <label for="supplies">Available Supplies</label>
-        <input type="text" id="supplies" placeholder="baking soda, vinegar, food coloring…">
-        <small>Select from above or type and separate with commas</small>
-      </div>
-
-      <div class="field-group">
-        <label for="model">Model</label>
-        <select id="model">
-          <option value="gpt-4o-mini" selected>gpt-4o-mini — fast &amp; affordable</option>
-          <option value="gpt-4o">gpt-4o — higher quality</option>
-          <option value="gpt-5">gpt-5 — premium</option>
-        </select>
-      </div>
-
-      <button id="generate-btn" class="generate-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-          <path d="M5 3l14 9-14 9V3z"/>
-        </svg>
-        Generate Experiment
-      </button>
-
-      <!-- Session History -->
-      <div class="history-section">
-        <div class="history-header">
-          <span class="history-title">Session History</span>
-          <span class="history-count hidden" id="history-count">0</span>
-        </div>
-        <div id="history-list" class="history-list">
-          <p class="history-empty">No experiments generated yet.</p>
-        </div>
       </div>
     </aside>
 

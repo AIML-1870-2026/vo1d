@@ -8,21 +8,35 @@ Given a grade level and a list of available supplies, generate a single age-appr
 experiment that uses only those supplies (plus universally available items like water, paper, or a \
 pen/pencil). The experiment should be safe for the specified grade level — avoid fire, sharp objects, \
 toxic chemicals, or anything requiring adult supervision beyond normal classroom oversight unless \
-clearly appropriate for the grade. Format your response in markdown with the following sections:
+clearly appropriate for the grade. Format your response in markdown with exactly these sections in order:
 
-- **Title** (a catchy experiment name as a level-1 heading)
+## Title
+(a catchy experiment name)
 
-Immediately after the title, on its own line, a blockquote with difficulty and time:
-> **Difficulty:** [Beginner / Intermediate / Advanced] · **Estimated Time:** [X–Y minutes]
+## Difficulty
+(exactly one word: Beginner, Intermediate, or Advanced)
 
-Then continue with:
-- **Grade Level**
-- **Scientific Concept** (one or two sentences on what the experiment demonstrates)
-- **Hypothesis** (a testable prediction, phrased in age-appropriate language)
-- **Materials** (bulleted list of what's needed)
-- **Procedure** (numbered steps)
-- **What's Happening** (age-appropriate explanation of the underlying science)
-- **Extension Questions** (2-3 questions to deepen student thinking)`;
+## Estimated Time
+(e.g. "20–30 minutes")
+
+## Grade Level
+## Scientific Concept
+(one or two sentences on what the experiment demonstrates)
+
+## Hypothesis
+(a testable prediction, phrased in age-appropriate language)
+
+## Materials
+(bulleted list with - prefix)
+
+## Procedure
+(numbered steps)
+
+## What's Happening
+(age-appropriate explanation of the underlying science)
+
+## Extension Questions
+(2-3 questions to deepen student thinking)`;
 
 /* ── Supply Categories ───────────────────────────────────────────────── */
 
@@ -236,6 +250,24 @@ function renderHistory() {
   }
 }
 
+/* ── Meta Parsing ────────────────────────────────────────────────────── */
+
+function parseMeta(markdown) {
+  const difficulty = markdown.match(/^##\s*Difficulty\s*\n+([^\n#]+)/im)?.[1]?.replace(/\*+/g, '').trim() || '';
+  const time       = markdown.match(/^##\s*Estimated Time\s*\n+([^\n#]+)/im)?.[1]?.replace(/\*+/g, '').trim() || '';
+  return { difficulty, time };
+}
+
+function metaBadgesHtml(difficulty, time) {
+  const key = difficulty.toLowerCase();
+  const cls = key.startsWith('beg') ? 'diff-easy' : key.startsWith('adv') ? 'diff-hard' : 'diff-med';
+  let html = '<div class="exp-meta">';
+  if (difficulty) html += `<span class="meta-badge ${cls}">⬡ ${esc(difficulty)}</span>`;
+  if (time)       html += `<span class="meta-badge meta-time">⏱ ${esc(time)}</span>`;
+  html += '</div>';
+  return (difficulty || time) ? html : '';
+}
+
 /* ── Markdown Helpers ────────────────────────────────────────────────── */
 
 function extractListSection(markdown, heading) {
@@ -395,8 +427,10 @@ function setLoading(on) {
 }
 
 function showResult(markdown) {
-  const html = DOMPurify.sanitize(marked.parse(markdown));
-  results.innerHTML = html;
+  const { difficulty, time } = parseMeta(markdown);
+  const badges  = metaBadgesHtml(difficulty, time);
+  const bodyHtml = DOMPurify.sanitize(marked.parse(markdown));
+  results.innerHTML = badges + bodyHtml;
   results.classList.remove('hidden');
   resultsActions.classList.remove('hidden');
   placeholder.classList.add('hidden');
