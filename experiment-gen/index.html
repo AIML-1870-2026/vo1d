@@ -86,10 +86,21 @@
         </select>
       </div>
 
+      <!-- Supplies Picker -->
+      <div class="supplies-picker">
+        <button class="picker-toggle" id="picker-toggle" type="button">
+          <span>Common Supplies</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div id="picker-body" class="picker-body hidden"></div>
+      </div>
+
       <div class="field-group">
         <label for="supplies">Available Supplies</label>
         <input type="text" id="supplies" placeholder="baking soda, vinegar, food coloring…">
-        <small>Separate items with commas</small>
+        <small>Select from above or type and separate with commas</small>
       </div>
 
       <div class="field-group">
@@ -107,6 +118,17 @@
         </svg>
         Generate Experiment
       </button>
+
+      <!-- Session History -->
+      <div class="history-section">
+        <div class="history-header">
+          <span class="history-title">Session History</span>
+          <span class="history-count hidden" id="history-count">0</span>
+        </div>
+        <div id="history-list" class="history-list">
+          <p class="history-empty">No experiments generated yet.</p>
+        </div>
+      </div>
     </aside>
 
     <!-- Results Panel -->
@@ -130,23 +152,19 @@
               <path d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
             </clipPath>
           </defs>
-          <!-- Glass tint -->
           <rect x="0" y="0" width="80" height="120" clip-path="url(#flask-interior)"
                 fill="rgba(200,230,230,0.1)"/>
-          <!-- Liquid: outer g clips to flask, inner g rises (level), path slides (wave) -->
           <g clip-path="url(#flask-interior)">
             <g class="liq-level">
               <path class="liq-wave"
                     d="M -80,0 C -70,-8 -60,8 -50,0 C -40,-8 -30,8 -20,0 C -10,-8 0,8 10,0 C 20,-8 30,8 40,0 C 50,-8 60,8 70,0 C 80,-8 90,8 100,0 C 110,-8 120,8 130,0 C 140,-8 150,8 160,0 L 160,200 L -80,200 Z"/>
             </g>
           </g>
-          <!-- Bubbles -->
           <g clip-path="url(#flask-interior)">
             <circle class="bubble b1" cx="26" cy="100" r="3.5"/>
             <circle class="bubble b2" cx="48" cy="94" r="2.5"/>
             <circle class="bubble b3" cx="36" cy="108" r="3"/>
           </g>
-          <!-- Flask outline -->
           <path class="flask-outline"
                 d="M28,2 L28,46 L5,94 Q1,114 16,117 L64,117 Q79,114 75,94 L52,46 L52,2 Z"/>
           <rect class="flask-stopper" x="25" y="0" width="30" height="6" rx="2"/>
@@ -156,15 +174,24 @@
 
       <div id="results" class="results-content hidden"></div>
 
-      <button id="pdf-btn" class="pdf-btn hidden">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-        </svg>
-        Download as PDF
-      </button>
+      <div class="results-actions hidden" id="results-actions">
+        <button id="pdf-btn" class="pdf-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Download as PDF
+        </button>
+        <button id="worksheet-btn" class="worksheet-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          Print Worksheet
+        </button>
+      </div>
     </section>
 
   </main>

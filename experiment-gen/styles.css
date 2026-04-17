@@ -277,6 +277,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
+  position: sticky;
+  top: 57px;
+  max-height: calc(100vh - 57px);
+  overflow-y: auto;
 }
 
 .panel-title {
@@ -604,6 +608,194 @@ body {
 
 .pdf-btn:active { transform: translateY(0); }
 
+/* ── Results Actions Row ──────────────────────────────────────────────── */
+.results-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Worksheet Button ─────────────────────────────────────────────────── */
+.worksheet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  font-family: var(--ff-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--mustard-dark);
+  background: transparent;
+  border: 2px solid var(--mustard);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.worksheet-btn svg { width: 16px; height: 16px; }
+
+.worksheet-btn:hover {
+  background: var(--mustard);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.worksheet-btn:active { transform: translateY(0); }
+
+/* ── Difficulty / Time blockquote ─────────────────────────────────────── */
+.results-content blockquote {
+  margin: 0.3rem 0 1.25rem;
+  padding: 0.5rem 1rem;
+  background: var(--cream-dark);
+  border-left: 4px solid var(--mustard);
+  border-radius: 0 3px 3px 0;
+  font-size: 0.88rem;
+  color: var(--brown-mid);
+  line-height: 1.6;
+}
+
+.results-content blockquote p { margin: 0; }
+
+/* ── Supplies Picker ──────────────────────────────────────────────────── */
+.supplies-picker { display: flex; flex-direction: column; gap: 0; }
+
+.picker-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  font-family: var(--ff-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brown);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: none;
+  border: none;
+  border-bottom: 2px solid var(--cream-dark);
+  cursor: pointer;
+}
+
+.picker-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.picker-toggle.open svg { transform: rotate(180deg); }
+
+.picker-body { padding: 0.6rem 0 0.2rem; display: flex; flex-direction: column; gap: 0.6rem; }
+
+.picker-cat-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brown-mid);
+  margin-bottom: 0.3rem;
+}
+
+.picker-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+.chip {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  background: var(--cream-dark);
+  border: 1.5px solid var(--cream-border);
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--brown);
+  font-family: var(--ff-body);
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.chip:hover { background: var(--cream-border); }
+
+.chip.selected {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+/* ── Session History ──────────────────────────────────────────────────── */
+.history-section {
+  border-top: 2px solid var(--cream-dark);
+  padding-top: 1rem;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.history-title {
+  font-family: var(--ff-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brown);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.history-count {
+  font-size: 0.72rem;
+  background: var(--red);
+  color: #fff;
+  padding: 0.1em 0.45em;
+  border-radius: 8px;
+  font-family: var(--ff-mono);
+  min-width: 1.4em;
+  text-align: center;
+}
+
+.history-list {
+  max-height: 210px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.history-empty {
+  font-size: 0.8rem;
+  color: var(--brown-mid);
+  font-style: italic;
+}
+
+.history-item {
+  padding: 0.4rem 0.65rem;
+  background: var(--cream);
+  border: 1.5px solid var(--cream-border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.history-item:hover { background: var(--cream-dark); border-color: var(--teal); }
+
+.history-item-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brown);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-meta {
+  font-size: 0.72rem;
+  color: var(--brown-mid);
+  font-family: var(--ff-mono);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .app-main { flex-direction: column; }
@@ -629,7 +821,7 @@ body {
   #placeholder,
   #loader,
   .panel-title,
-  .pdf-btn { display: none !important; }
+  .results-actions { display: none !important; }
 
   body {
     background: #fff;

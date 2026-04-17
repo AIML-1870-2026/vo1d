@@ -10,7 +10,12 @@ pen/pencil). The experiment should be safe for the specified grade level — avo
 toxic chemicals, or anything requiring adult supervision beyond normal classroom oversight unless \
 clearly appropriate for the grade. Format your response in markdown with the following sections:
 
-- **Title** (a catchy experiment name)
+- **Title** (a catchy experiment name as a level-1 heading)
+
+Immediately after the title, on its own line, a blockquote with difficulty and time:
+> **Difficulty:** [Beginner / Intermediate / Advanced] · **Estimated Time:** [X–Y minutes]
+
+Then continue with:
 - **Grade Level**
 - **Scientific Concept** (one or two sentences on what the experiment demonstrates)
 - **Hypothesis** (a testable prediction, phrased in age-appropriate language)
@@ -18,6 +23,17 @@ clearly appropriate for the grade. Format your response in markdown with the fol
 - **Procedure** (numbered steps)
 - **What's Happening** (age-appropriate explanation of the underlying science)
 - **Extension Questions** (2-3 questions to deepen student thinking)`;
+
+/* ── Supply Categories ───────────────────────────────────────────────── */
+
+const SUPPLY_CATEGORIES = [
+  { label: 'Liquids',    items: ['Water', 'Vinegar', 'Dish Soap', 'Rubbing Alcohol', 'Lemon Juice', 'Milk', 'Cooking Oil', 'Hydrogen Peroxide'] },
+  { label: 'Powders',    items: ['Baking Soda', 'Salt', 'Sugar', 'Cornstarch', 'Flour', 'Baking Powder', 'Sand', 'Coffee Grounds'] },
+  { label: 'Containers', items: ['Plastic Cup', 'Glass Jar', 'Bowl', 'Plastic Bottle', 'Ziplock Bag', 'Tray', 'Spoon'] },
+  { label: 'Household',  items: ['Balloon', 'Paper Towel', 'Aluminum Foil', 'Tape', 'String', 'Rubber Band', 'Candle', 'Matches'] },
+  { label: 'Food',       items: ['Egg', 'Raisins', 'Yeast', 'Food Coloring', 'Ice', 'Potato', 'Cabbage', 'Milk'] },
+  { label: 'Tools',      items: ['Ruler', 'Thermometer', 'Magnet', 'Compass', 'Battery', 'Wire', 'Stopwatch', 'Scale'] },
+];
 
 /* ── DOM References ──────────────────────────────────────────────────── */
 
@@ -29,38 +45,44 @@ const apiKeySubmit  = document.getElementById('api-key-submit');
 const gateError     = document.getElementById('gate-error');
 const changeKey     = document.getElementById('change-key');
 
-const gradeSelect = document.getElementById('grade');
-const suppliesIn  = document.getElementById('supplies');
-const modelSelect = document.getElementById('model');
-const generateBtn = document.getElementById('generate-btn');
+const gradeSelect   = document.getElementById('grade');
+const suppliesIn    = document.getElementById('supplies');
+const modelSelect   = document.getElementById('model');
+const generateBtn   = document.getElementById('generate-btn');
+const pickerToggle  = document.getElementById('picker-toggle');
+const pickerBody    = document.getElementById('picker-body');
 
-const placeholder = document.getElementById('placeholder');
-const loader      = document.getElementById('loader');
-const results     = document.getElementById('results');
-const pdfBtn      = document.getElementById('pdf-btn');
+const placeholder   = document.getElementById('placeholder');
+const loader        = document.getElementById('loader');
+const results       = document.getElementById('results');
+const resultsActions = document.getElementById('results-actions');
+const pdfBtn        = document.getElementById('pdf-btn');
+const worksheetBtn  = document.getElementById('worksheet-btn');
+
+const historyList   = document.getElementById('history-list');
+const historyCount  = document.getElementById('history-count');
 
 /* ── State ───────────────────────────────────────────────────────────── */
 
 let apiKey = null;
+let currentMarkdown = null;
+let currentGrade = null;
+const sessionHistory = [];
 
 /* ── .env Parsing ────────────────────────────────────────────────────── */
 
 function parseEnvKey(text) {
   const lines = text.split('\n');
-
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     const m = trimmed.match(/^OPENAI_API_KEY\s*=\s*['"]?(sk-[^\s'"]+)['"]?/i);
     if (m) return m[1];
   }
-
-  // Fallback: bare sk- key on its own line
   for (const line of lines) {
     const m = line.trim().match(/^(sk-[^\s]+)$/);
     if (m) return m[1];
   }
-
   return null;
 }
 
@@ -68,7 +90,6 @@ function parseEnvKey(text) {
 
 async function generateExperiment({ key, grade, supplies, model }) {
   const userPrompt = `Grade level: ${grade}\nAvailable supplies: ${supplies}`;
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -86,7 +107,7 @@ async function generateExperiment({ key, grade, supplies, model }) {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user',   content: userPrompt },
         ],
-        max_tokens: 1500,
+        max_tokens: 1800,
       }),
       signal: controller.signal,
     });
@@ -109,11 +130,240 @@ async function generateExperiment({ key, grade, supplies, model }) {
 /* ── Supply Normalization ────────────────────────────────────────────── */
 
 function normalizeSupplies(raw) {
-  return raw
-    .split(',')
-    .map(s => s.trim().replace(/\s+/g, ' '))
-    .filter(Boolean)
-    .join(', ');
+  return raw.split(',').map(s => s.trim().replace(/\s+/g, ' ')).filter(Boolean).join(', ');
+}
+
+/* ── Supplies Picker ─────────────────────────────────────────────────── */
+
+function buildSuppliesPicker() {
+  pickerBody.innerHTML = '';
+  for (const cat of SUPPLY_CATEGORIES) {
+    const section = document.createElement('div');
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'picker-cat-label';
+    labelEl.textContent = cat.label;
+    section.appendChild(labelEl);
+
+    const chipsEl = document.createElement('div');
+    chipsEl.className = 'picker-chips';
+    for (const item of cat.items) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = item;
+      chip.dataset.item = item;
+      chip.addEventListener('click', () => toggleSupply(item, chip));
+      chipsEl.appendChild(chip);
+    }
+    section.appendChild(chipsEl);
+    pickerBody.appendChild(section);
+  }
+}
+
+function toggleSupply(name, chipEl) {
+  const items = suppliesIn.value.split(',').map(s => s.trim()).filter(Boolean);
+  const idx = items.findIndex(s => s.toLowerCase() === name.toLowerCase());
+  if (idx === -1) {
+    items.push(name);
+    chipEl.classList.add('selected');
+  } else {
+    items.splice(idx, 1);
+    chipEl.classList.remove('selected');
+  }
+  suppliesIn.value = items.join(', ');
+}
+
+function syncChipStates() {
+  const current = suppliesIn.value.split(',').map(s => s.trim().toLowerCase());
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.classList.toggle('selected', current.includes(chip.dataset.item.toLowerCase()));
+  });
+}
+
+pickerToggle.addEventListener('click', () => {
+  const open = !pickerBody.classList.contains('hidden');
+  pickerBody.classList.toggle('hidden', open);
+  pickerToggle.classList.toggle('open', !open);
+});
+
+suppliesIn.addEventListener('input', syncChipStates);
+
+/* ── Session History ─────────────────────────────────────────────────── */
+
+function extractTitle(markdown) {
+  const m = markdown.match(/^#\s+(.+)$/m);
+  return m ? m[1].replace(/\*+/g, '').trim() : 'Experiment';
+}
+
+function addToHistory(grade, markdown) {
+  const title = extractTitle(markdown);
+  sessionHistory.unshift({ title, grade, markdown, ts: Date.now() });
+  if (sessionHistory.length > 20) sessionHistory.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  historyCount.textContent = sessionHistory.length;
+  historyCount.classList.toggle('hidden', sessionHistory.length === 0);
+
+  if (sessionHistory.length === 0) {
+    historyList.innerHTML = '<p class="history-empty">No experiments generated yet.</p>';
+    return;
+  }
+
+  historyList.innerHTML = '';
+  for (const entry of sessionHistory) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'history-item-title';
+    titleEl.textContent = entry.title;
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'history-item-meta';
+    metaEl.textContent = `Grade ${entry.grade}`;
+
+    item.appendChild(titleEl);
+    item.appendChild(metaEl);
+    item.addEventListener('click', () => {
+      currentMarkdown = entry.markdown;
+      currentGrade = entry.grade;
+      showResult(entry.markdown);
+    });
+    historyList.appendChild(item);
+  }
+}
+
+/* ── Markdown Helpers ────────────────────────────────────────────────── */
+
+function extractListSection(markdown, heading) {
+  const re = new RegExp(`(?:^|\\n)##?\\s*\\**${heading}\\**[^\\n]*\\n([\\s\\S]*?)(?=\\n##?\\s|$)`, 'i');
+  const m = markdown.match(re);
+  if (!m) return [];
+  const items = [];
+  for (const line of m[1].split('\n')) {
+    const bullet   = line.match(/^\s*[-*•]\s+(.+)/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.+)/);
+    const text = (bullet || numbered)?.[1];
+    if (text) items.push(text.replace(/\*+/g, '').trim());
+  }
+  return items;
+}
+
+/* ── Worksheet ───────────────────────────────────────────────────────── */
+
+function printWorksheet(title, grade, markdown) {
+  const materials  = extractListSection(markdown, 'Materials');
+  const procedure  = extractListSection(markdown, 'Procedure');
+
+  const matHtml = materials.length
+    ? materials.map(m =>
+        `<div class="ci"><div class="cb"></div><span>${esc(m)}</span></div>`
+      ).join('')
+    : '<div class="blank-lines"><div class="bl"></div><div class="bl"></div><div class="bl"></div></div>';
+
+  const procHtml = procedure.length
+    ? procedure.map((p, i) =>
+        `<div class="ci"><div class="cb"></div><span><b>${i + 1}.</b> ${esc(p)}</span></div>`
+      ).join('')
+    : '<div class="blank-lines"><div class="bl"></div><div class="bl"></div><div class="bl"></div><div class="bl"></div></div>';
+
+  const lines = (n) => Array(n).fill('<div class="bl"></div>').join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Worksheet — ${esc(title)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,'Times New Roman',serif;color:#000;background:#fff;padding:1.8cm 2cm;font-size:11pt;line-height:1.6}
+h1{font-size:17pt;text-align:center;margin-bottom:3pt}
+.subtitle{text-align:center;font-size:10pt;color:#444;margin-bottom:14pt}
+h2{font-size:12pt;border-bottom:2px solid #000;padding-bottom:3pt;margin:16pt 0 8pt;text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;gap:18pt;margin-bottom:14pt}
+.field{flex:1;border-bottom:1px solid #555;padding-bottom:2pt;font-size:10pt}
+.field b{margin-right:4pt}
+.bl{border-bottom:1px solid #bbb;height:22pt;margin-bottom:3pt}
+.blank-lines{margin:4pt 0 6pt}
+.ci{display:flex;gap:8pt;align-items:flex-start;margin-bottom:6pt}
+.cb{width:11pt;height:11pt;border:1.5px solid #333;flex-shrink:0;margin-top:2pt}
+.obs-table{width:100%;border-collapse:collapse;margin-top:6pt}
+.obs-table th,.obs-table td{border:1px solid #555;padding:5pt 7pt;font-size:10pt}
+.obs-table th{background:#eee;font-weight:bold;text-align:left}
+.obs-table td{height:30pt;vertical-align:top}
+.checks{display:flex;gap:20pt;margin:6pt 0 10pt;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:6pt}
+.footer{margin-top:20pt;border-top:1px solid #ccc;padding-top:6pt;text-align:center;font-size:9pt;color:#777}
+@media print{body{padding:1cm 1.2cm}}
+</style></head><body>
+<h1>🔬 Science Experiment Observation Worksheet</h1>
+<p class="subtitle">${esc(title)} &mdash; Grade ${esc(grade)}</p>
+
+<div class="row">
+  <div class="field"><b>Name:</b> _______________________</div>
+  <div class="field"><b>Date:</b> ________________________</div>
+  <div class="field"><b>Class:</b> _______________________</div>
+</div>
+
+<h2>My Hypothesis</h2>
+<p style="margin-bottom:5pt">I predict that:</p>
+<div class="blank-lines">${lines(3)}</div>
+<p style="margin-bottom:5pt;margin-top:6pt">Because:</p>
+<div class="blank-lines">${lines(2)}</div>
+
+<h2>Materials Checklist</h2>
+<p style="font-size:10pt;margin-bottom:6pt">Check off each item as you gather it:</p>
+${matHtml}
+
+<h2>Procedure</h2>
+<p style="font-size:10pt;margin-bottom:6pt">Check off each step as you complete it:</p>
+${procHtml}
+
+<h2>Observations &amp; Data</h2>
+<table class="obs-table">
+  <tr><th style="width:13%">Step</th><th>What I Observed</th><th style="width:28%">Measurements / Notes</th></tr>
+  <tr><td>1</td><td></td><td></td></tr>
+  <tr><td>2</td><td></td><td></td></tr>
+  <tr><td>3</td><td></td><td></td></tr>
+  <tr><td>4</td><td></td><td></td></tr>
+  <tr><td>5</td><td></td><td></td></tr>
+  <tr><td>6</td><td></td><td></td></tr>
+</table>
+
+<h2>Additional Notes</h2>
+<div class="blank-lines">${lines(3)}</div>
+
+<h2>Results &amp; Conclusion</h2>
+<p style="margin-bottom:5pt">What happened?</p>
+<div class="blank-lines">${lines(3)}</div>
+<p style="margin:10pt 0 5pt">My hypothesis was:</p>
+<div class="checks">
+  <div class="chk"><div class="cb"></div> Correct</div>
+  <div class="chk"><div class="cb"></div> Partially Correct</div>
+  <div class="chk"><div class="cb"></div> Incorrect</div>
+</div>
+<p style="margin-bottom:5pt">Because:</p>
+<div class="blank-lines">${lines(3)}</div>
+
+<h2>Extension Question</h2>
+<p style="font-size:10pt;margin-bottom:6pt">Choose one extension question and answer it below:</p>
+<div class="blank-lines">${lines(4)}</div>
+
+<div class="footer">Generated by Science Experiment Generator &mdash; aiml-1870-2026.github.io/vo1d/experiment-gen/</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=860,height=1100');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 400);
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /* ── UI Helpers ──────────────────────────────────────────────────────── */
@@ -138,7 +388,7 @@ function setLoading(on) {
     placeholder.classList.add('hidden');
     loader.classList.remove('hidden');
     results.classList.add('hidden');
-    pdfBtn.classList.add('hidden');
+    resultsActions.classList.add('hidden');
   } else {
     loader.classList.add('hidden');
   }
@@ -148,7 +398,7 @@ function showResult(markdown) {
   const html = DOMPurify.sanitize(marked.parse(markdown));
   results.innerHTML = html;
   results.classList.remove('hidden');
-  pdfBtn.classList.remove('hidden');
+  resultsActions.classList.remove('hidden');
   placeholder.classList.add('hidden');
   loader.classList.add('hidden');
 }
@@ -178,7 +428,7 @@ function showResultsError(msg, offerGateLink = false) {
   results.innerHTML = '';
   results.appendChild(card);
   results.classList.remove('hidden');
-  pdfBtn.classList.add('hidden');
+  resultsActions.classList.add('hidden');
   placeholder.classList.add('hidden');
   loader.classList.add('hidden');
 }
@@ -210,9 +460,7 @@ function acceptKey(key) {
 envInput.addEventListener('change', () => {
   const file = envInput.files?.[0];
   if (!file) return;
-
   clearGateError();
-
   const reader = new FileReader();
   reader.onload = e => {
     const key = parseEnvKey(e.target.result);
@@ -270,7 +518,10 @@ generateBtn.addEventListener('click', async () => {
 
   try {
     const markdown = await generateExperiment({ key: apiKey, grade, supplies, model });
+    currentMarkdown = markdown;
+    currentGrade    = grade;
     showResult(markdown);
+    addToHistory(grade, markdown);
   } catch (err) {
     if (err.name === 'AbortError') {
       showResultsError('Request timed out after 45 seconds. Check your connection and try again.');
@@ -295,11 +546,20 @@ generateBtn.addEventListener('click', async () => {
 
 pdfBtn.addEventListener('click', () => window.print());
 
+/* ── Event: Print Worksheet ──────────────────────────────────────────── */
+
+worksheetBtn.addEventListener('click', () => {
+  if (currentMarkdown) printWorksheet(extractTitle(currentMarkdown), currentGrade, currentMarkdown);
+});
+
+/* ── Init ────────────────────────────────────────────────────────────── */
+
+buildSuppliesPicker();
+renderHistory();
+
 /* ── file:// guard ───────────────────────────────────────────────────── */
 
 if (window.location.protocol === 'file:') {
-  document.addEventListener('DOMContentLoaded', () => {
-    showGateError('⚠ This page is open as a local file. API calls are blocked in that mode — open it via a local server or your deployed GitHub Pages URL.');
-    envInput.disabled = true;
-  });
+  showGateError('⚠ This page is open as a local file. API calls are blocked in that mode — open it via a local server or your deployed GitHub Pages URL.');
+  envInput.disabled = true;
 }
