@@ -362,6 +362,9 @@ button:disabled { opacity: 0.32; cursor: not-allowed; box-shadow: none; }
 
 .btn-sm { padding: 5px 10px; font-size: 0.72rem; }
 
+.btn-undo { background: linear-gradient(180deg, #3d2c10, #251a08); color: var(--parchment); border-color: #5a3a18; }
+.btn-undo:hover:not(:disabled) { background: linear-gradient(180deg, #4d3a18, #2e2010); }
+
 /* ── Insurance Prompt ── */
 .insurance-prompt {
   background: linear-gradient(90deg, #2a1a08, #1e1206);
@@ -630,6 +633,62 @@ input[type=file] { font-size: 0.82rem; color: var(--cream); }
 }
 .legend-item { display: flex; align-items: center; gap: 3px; }
 .legend-dot  { width: 11px; height: 11px; border-radius: 2px; }
+
+/* ── Animations ── */
+
+@keyframes cardDeal {
+  0%   { opacity: 0; transform: translateY(-40px) rotate(-8deg) scale(0.85); }
+  60%  { opacity: 1; transform: translateY(4px)  rotate(1deg)  scale(1.02); }
+  100% { opacity: 1; transform: translateY(0)    rotate(0deg)  scale(1); }
+}
+
+@keyframes cardReveal {
+  0%   { opacity: 0.2; transform: scaleX(0.05) rotateY(80deg); }
+  40%  { opacity: 0.7; transform: scaleX(0.6)  rotateY(20deg); }
+  100% { opacity: 1;   transform: scaleX(1)    rotateY(0deg); }
+}
+
+@keyframes resultPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  65%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes bankrollUp {
+  0%   { color: #86d870; text-shadow: 0 0 12px rgba(134,216,112,0.4); }
+  40%  { color: #b0ffb0; text-shadow: 0 0 28px rgba(134,216,112,0.9), 0 0 60px rgba(134,216,112,0.4); transform: scale(1.12); }
+  100% { color: #86d870; text-shadow: 0 0 12px rgba(134,216,112,0.4); transform: scale(1); }
+}
+
+@keyframes bankrollDown {
+  0%   { color: #86d870; }
+  30%  { color: #ff8080; text-shadow: 0 0 20px rgba(220,50,50,0.7); transform: scale(0.92); }
+  100% { color: #86d870; transform: scale(1); }
+}
+
+@keyframes handActivePulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(200,134,10,0.12); }
+  50%       { box-shadow: 0 0 24px rgba(200,134,10,0.35), 0 0 4px rgba(200,134,10,0.2); }
+}
+
+.card-deal {
+  animation: cardDeal 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.card-reveal {
+  animation: cardReveal 0.38s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.result-badge-anim {
+  animation: resultPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.bankroll-up   { animation: bankrollUp   0.6s ease forwards; }
+.bankroll-down { animation: bankrollDown 0.6s ease forwards; }
+
+.active-hand {
+  animation: handActivePulse 2.5s ease-in-out infinite;
+}
 
 @media (max-width: 768px) {
   body { grid-template-columns: 1fr; }

@@ -5,42 +5,88 @@ import { getSession, buildSvgCurve } from './analytics.js';
 const SUIT_SYMBOLS = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const RED_SUITS = new Set(['H', 'D']);
 
-export function renderCard(card, faceDown = false) {
-  if (faceDown) return `<div class="card face-down">🂠</div>`;
+// Animation state tracking
+let _prevDealerCount = 0;
+let _prevShowHole = false;
+let _prevHandCounts = new Map(); // handIdx → card count
+let _skipNextAnimation = false;
+
+export function resetAnimationState() {
+  _skipNextAnimation = true;
+}
+
+function cardHtml(card, faceDown = false, extraClass = '') {
+  if (faceDown) return `<div class="card face-down ${extraClass}"></div>`;
   const suit = SUIT_SYMBOLS[card.suit] ?? card.suit;
   const color = RED_SUITS.has(card.suit) ? 'red' : 'black';
-  return `<div class="card" style="color:${color}">
+  return `<div class="card ${extraClass}" style="color:${color}">
     <span class="rank">${card.rank}</span>
     <span class="suit">${suit}</span>
   </div>`;
 }
 
-export function renderHands(playerHands, dealerCards, activeIdx, phase) {
+export function renderCard(card, faceDown = false) {
+  return cardHtml(card, faceDown);
+}
+
+export function renderHands(playerHands, dealerCards, activeIdx, phase, skipAnim = false) {
   const dealerArea = document.getElementById('dealer-area');
   const playerArea = document.getElementById('player-area');
+  const noAnim = _skipNextAnimation || skipAnim;
 
   const showHole = phase !== 'PLAYER_TURN' && phase !== 'INSURANCE';
   const { total: dt } = showHole ? scoreHand(dealerCards) : scoreHand([dealerCards[0]]);
-  const dealerScore = showHole ? `${scoreHand(dealerCards).total}` : `${scoreHand([dealerCards[0]]).total}+?`;
+  const dealerScore = showHole
+    ? `${scoreHand(dealerCards).total}`
+    : `${scoreHand([dealerCards[0]]).total}+?`;
+
+  // Dealer cards — animate newly added cards and hole reveal
+  const dealerHtml = dealerCards.map((c, i) => {
+    const isFaceDown = i === 1 && !showHole;
+    const isNew    = !noAnim && i >= _prevDealerCount;
+    const isReveal = !noAnim && i === 1 && showHole && !_prevShowHole;
+    const cls = isReveal ? 'card-reveal' : isNew ? 'card-deal' : '';
+    return cardHtml(c, isFaceDown, cls);
+  }).join('');
 
   dealerArea.innerHTML = `
     <div class="hand-label">Dealer <span class="score">${dealerScore}</span></div>
-    <div class="cards-row">
-      ${dealerCards.map((c, i) => renderCard(c, i === 1 && !showHole)).join('')}
-    </div>`;
+    <div class="cards-row">${dealerHtml}</div>`;
 
+  // Player hands — animate new cards per hand
   playerArea.innerHTML = playerHands.map((hand, idx) => {
     const { total, isSoft } = scoreHand(hand.cards);
     const active = idx === activeIdx && (phase === 'PLAYER_TURN' || phase === 'INSURANCE');
     const resultClass = hand.result ? `result-${hand.result}` : '';
-    const resultLabel = hand.result ? `<span class="result-badge">${formatResult(hand.result)}</span>` : '';
+    const resultLabel = hand.result
+      ? `<span class="result-badge result-badge-anim">${formatResult(hand.result)}</span>`
+      : '';
+    const prevCount = _prevHandCounts.get(idx) ?? 0;
+
+    const cardsHtml = hand.cards.map((c, ci) => {
+      const cls = (!noAnim && ci >= prevCount) ? 'card-deal' : '';
+      return cardHtml(c, false, cls);
+    }).join('');
+
     return `<div class="hand ${active ? 'active-hand' : ''} ${resultClass}">
       <div class="hand-label">Hand ${idx + 1} — $${hand.bet} ${isSoft ? '(soft)' : ''}
         <span class="score">${total}</span>${resultLabel}
       </div>
-      <div class="cards-row">${hand.cards.map(c => renderCard(c)).join('')}</div>
+      <div class="cards-row">${cardsHtml}</div>
     </div>`;
   }).join('');
+
+  // Update tracking state
+  _prevDealerCount = dealerCards.length;
+  _prevShowHole   = showHole;
+  _prevHandCounts = new Map(playerHands.map((h, i) => [i, h.cards.length]));
+  _skipNextAnimation = false;
+}
+
+export function clearAnimationTracking() {
+  _prevDealerCount = 0;
+  _prevShowHole    = false;
+  _prevHandCounts  = new Map();
 }
 
 function formatResult(r) {
@@ -68,7 +114,9 @@ export function showAgentResult(result, explainMode, basicStrategyAction) {
 
   const matches = basicStrategyAction && basicStrategyMap(basicStrategyAction) === result.action;
   const matchIcon = basicStrategyAction
-    ? (matches ? '<span class="match-icon match">✓ matches basic strategy</span>' : '<span class="match-icon no-match">⚠ diverges from basic strategy</span>')
+    ? (matches
+        ? '<span class="match-icon match">✓ matches basic strategy</span>'
+        : '<span class="match-icon no-match">⚠ diverges from basic strategy</span>')
     : '';
 
   let html = `<div class="agent-action">
@@ -77,9 +125,7 @@ export function showAgentResult(result, explainMode, basicStrategyAction) {
     ${matchIcon}
   </div>`;
 
-  if (explainMode === 'terse') {
-    html += `<p class="reasoning">${result.reasoning_terse}</p>`;
-  } else if (explainMode === 'standard') {
+  if (explainMode === 'terse' || explainMode === 'standard') {
     html += `<p class="reasoning">${result.reasoning_terse}</p>`;
   } else {
     html += `<p class="reasoning">${result.reasoning_detailed}</p>`;
@@ -105,15 +151,23 @@ export function showToast(msg, type = 'info', duration = 4000) {
 
 export function updateBankroll(amount) {
   const el = document.getElementById('bankroll-display');
-  if (el) el.textContent = `$${amount}`;
+  if (!el) return;
+  const prev = parseInt(el.dataset.prev ?? amount);
+  el.textContent = `$${amount}`;
+  el.dataset.prev = amount;
+  if (prev !== amount) {
+    el.classList.remove('bankroll-up', 'bankroll-down');
+    void el.offsetWidth; // force reflow to restart animation
+    el.classList.add(amount > prev ? 'bankroll-up' : 'bankroll-down');
+  }
 }
 
 export function updateAnalytics() {
   const s = getSession();
   const panel = document.getElementById('analytics-panel');
   if (!panel) return;
-  const winRate = s.handsPlayed ? ((s.wins / s.handsPlayed) * 100).toFixed(1) : '0.0';
-  const agreeRate = s.agentTotal ? ((s.agentExecuted / s.agentTotal) * 100).toFixed(1) : 'N/A';
+  const winRate   = s.handsPlayed ? ((s.wins / s.handsPlayed) * 100).toFixed(1) : '0.0';
+  const agreeRate = s.agentTotal  ? ((s.agentExecuted / s.agentTotal) * 100).toFixed(1) : 'N/A';
   const basicAgree = s.agentTotal ? ((s.agentMatchedBasic / s.agentTotal) * 100).toFixed(1) : 'N/A';
 
   panel.innerHTML = `
@@ -137,10 +191,8 @@ export function buildStrategyChart() {
   if (!container) return;
 
   const dealerHeaders = ['', ...DEALER_COLS].map(d => `<th>${d}</th>`).join('');
-
   let rows = '';
 
-  // Hard totals
   rows += `<tr><td colspan="${DEALER_COLS.length + 1}" class="section-header">Hard Totals</td></tr>`;
   for (let t = 5; t <= 21; t++) {
     if (!HARD[t]) continue;
@@ -149,7 +201,6 @@ export function buildStrategyChart() {
     ).join('')}</tr>`;
   }
 
-  // Soft totals
   rows += `<tr><td colspan="${DEALER_COLS.length + 1}" class="section-header">Soft Totals</td></tr>`;
   for (let t = 13; t <= 21; t++) {
     if (!SOFT[t]) continue;
@@ -158,7 +209,6 @@ export function buildStrategyChart() {
     ).join('')}</tr>`;
   }
 
-  // Pairs
   rows += `<tr><td colspan="${DEALER_COLS.length + 1}" class="section-header">Pairs</td></tr>`;
   for (const [rank, arr] of Object.entries(PAIRS)) {
     rows += `<tr><td class="row-label">${rank}-${rank}</td>${arr.map((a, i) =>
@@ -173,11 +223,9 @@ export function buildStrategyChart() {
 }
 
 export function highlightStrategyCell(state, agentAction, basicAction) {
-  // Clear previous highlights
   document.querySelectorAll('.cell.highlighted').forEach(el => {
     el.classList.remove('highlighted', 'match-highlight', 'mismatch-highlight');
   });
-
   if (!basicAction || !state) return;
 
   const dealerIdx = DEALER_COLS.indexOf(
@@ -218,7 +266,7 @@ export function showGameOver(session, finalBankroll) {
   modal.innerHTML = `
     <div class="modal-content">
       <h2>Game Over</h2>
-      <p>You ran out of chips!</p>
+      <p style="color:var(--parchment);font-style:italic;margin-bottom:8px;">Your coffers are empty, traveller.</p>
       <div class="go-stats">
         <div>Hands played: <strong>${s.handsPlayed}</strong></div>
         <div>Wins / Losses / Pushes: <strong>${s.wins} / ${s.losses} / ${s.pushes}</strong></div>
@@ -227,7 +275,7 @@ export function showGameOver(session, finalBankroll) {
         <div>Longest win streak: <strong>${s.longestWin}</strong></div>
         <div>Longest loss streak: <strong>${s.longestLoss}</strong></div>
       </div>
-      <button onclick="location.reload()">Play Again</button>
+      <button onclick="location.reload()">Return to the Tavern</button>
     </div>`;
   modal.style.display = 'flex';
 }

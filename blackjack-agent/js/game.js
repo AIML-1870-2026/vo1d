@@ -25,8 +25,24 @@ export function createGame() {
   let dealerCards = [];
   let pendingBet = 25;
   let insuranceOffered = false;
+  let _undoSnapshot = null;
 
   function activeHand() { return playerHands[activeHandIdx]; }
+
+  function _cloneHands(hands) {
+    return hands.map(h => ({ ...h, cards: [...h.cards] }));
+  }
+
+  function _saveSnapshot() {
+    _undoSnapshot = {
+      bankroll,
+      phase,
+      playerHands: _cloneHands(playerHands),
+      dealerCards: [...dealerCards],
+      activeHandIdx,
+      shoeState: shoe.getState(),
+    };
+  }
 
   function legalActions() {
     if (phase !== PHASES.PLAYER_TURN) return [];
@@ -77,6 +93,7 @@ export function createGame() {
   }
 
   function dealRound(bet) {
+    _undoSnapshot = null;
     if (shoe.needsShuffle()) shoe.reset();
     pendingBet = bet;
     bankroll -= bet;
@@ -120,6 +137,7 @@ export function createGame() {
 
   function applyInsurance(takeIt) {
     if (phase !== PHASES.INSURANCE) return;
+    _saveSnapshot();
     const hand = activeHand();
     if (takeIt) {
       const sideBet = Math.floor(hand.bet / 2);
@@ -146,6 +164,7 @@ export function createGame() {
 
   function applyAction(action) {
     if (phase !== PHASES.PLAYER_TURN) return;
+    _saveSnapshot();
     const hand = activeHand();
 
     if (action === 'hit') {
@@ -247,6 +266,23 @@ export function createGame() {
     return { phase, playerHands, dealerCards, dealerTotal, bankroll };
   }
 
+  function canUndo() {
+    return _undoSnapshot !== null;
+  }
+
+  function undo() {
+    if (!_undoSnapshot) return false;
+    const s = _undoSnapshot;
+    bankroll = s.bankroll;
+    phase = s.phase;
+    playerHands = s.playerHands;
+    dealerCards = s.dealerCards;
+    activeHandIdx = s.activeHandIdx;
+    shoe.setState(s.shoeState);
+    _undoSnapshot = null;
+    return true;
+  }
+
   return {
     get phase() { return phase; },
     get bankroll() { return bankroll; },
@@ -259,5 +295,7 @@ export function createGame() {
     dealRound,
     applyInsurance,
     applyAction,
+    canUndo,
+    undo,
   };
 }

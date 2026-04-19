@@ -48,7 +48,14 @@ export function createShoe() {
     },
     remaining() {
       return cards.length - pos;
-    }
+    },
+    getState() {
+      return { cards: [...cards], pos };
+    },
+    setState(state) {
+      cards.splice(0, cards.length, ...state.cards);
+      pos = state.pos;
+    },
   };
 }
 

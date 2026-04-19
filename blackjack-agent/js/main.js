@@ -7,6 +7,7 @@ import {
   renderHands, setActionButtons, showAgentResult,
   showToast, updateBankroll, updateAnalytics,
   buildStrategyChart, highlightStrategyCell, showGameOver,
+  clearAnimationTracking, resetAnimationState,
 } from './ui.js';
 
 let game = createGame();
@@ -97,6 +98,7 @@ document.getElementById('btn-deal').addEventListener('click', () => {
   lastStatePayload = null;
   lastBasicAction = null;
   showAgentResult(null, explainMode, null);
+  clearAnimationTracking();
 
   const result = game.dealRound(bet);
   render();
@@ -208,6 +210,17 @@ function handleAgentError(err) {
   console.error('[AGENT] Error:', err);
 }
 
+// ── Undo ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (!game.canUndo()) return;
+  resetAnimationState();
+  game.undo();
+  lastAgentResult = null;
+  showAgentResult(null, explainMode, null);
+  render();
+  showToast('Action undone — choose again', 'info', 2500);
+});
+
 // ── Explain Mode ─────────────────────────────────────────────────────────────
 document.getElementById('explain-mode').addEventListener('change', (e) => {
   explainMode = e.target.value;
@@ -240,6 +253,7 @@ function render() {
   document.getElementById('btn-deal').disabled = !inBet || !getApiKey();
   document.getElementById('btn-ask-agent').disabled =
     (game.phase !== PHASES.PLAYER_TURN && game.phase !== PHASES.INSURANCE) || !getApiKey();
+  document.getElementById('btn-undo').disabled = !game.canUndo();
 
   // After a round settles, reset bet display to 0 so user must re-place
   if (inBet) {
