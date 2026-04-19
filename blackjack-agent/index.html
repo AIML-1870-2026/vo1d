@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Black Card Tavern — Blackjack AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header>
+  <h1>⚔ The Black Card Tavern</h1>
+  <div style="display:flex;align-items:center;gap:20px;">
+    <span>Bankroll: <span class="bankroll-display" id="bankroll-display">$1000</span></span>
+  </div>
+</header>
+
+<div id="env-banner" style="grid-column:1/-1;background:#7c2d12;padding:10px 24px;display:flex;align-items:center;gap:12px;font-size:0.9rem;flex-wrap:wrap;">
+  <span style="font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.5px;">⚠ Enter your OpenAI key to summon the Oracle:</span>
+  <input type="text" id="key-text-input" placeholder="sk-..." autocomplete="off" spellcheck="false" style="flex:1;min-width:220px;max-width:340px;background:rgba(255,255,255,0.07);border:1px solid #c8860a;border-radius:6px;color:#f0ddb8;padding:5px 10px;font-size:0.85rem;font-family:'Crimson Text',serif;">
+  <button id="btn-set-key" style="background:linear-gradient(180deg,#9a6010,#6a3a08);color:#f0ddb8;border:1px solid #4a2806;border-radius:6px;padding:5px 14px;cursor:pointer;font-size:0.75rem;font-weight:600;font-family:'Cinzel',serif;letter-spacing:0.5px;text-shadow:0 1px 2px rgba(0,0,0,0.5);">Set Key</button>
+  <span style="color:var(--muted)">or</span>
+  <label style="cursor:pointer;background:#fff2;padding:5px 10px;border-radius:6px;font-size:0.85rem;white-space:nowrap;">
+    Upload .env <input type="file" id="env-file" accept=".env,text/plain" style="display:none">
+  </label>
+  <span id="key-status" style="color:#fca5a5;white-space:nowrap;">No key loaded</span>
+</div>
+
+<!-- Main Column -->
+<main class="main-col">
+
+  <!-- Game Table -->
+  <div class="game-table">
+    <div id="dealer-area">
+      <div class="hand-label">Dealer</div>
+      <div class="cards-row"><div class="card face-down" style="opacity:0.4">🂠</div></div>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.1)">
+    <div id="player-area">
+      <div class="hand-label">Your Hand</div>
+      <div class="cards-row"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <!-- Chip Tray -->
+    <div class="chip-area">
+      <div class="chip-tray" id="chip-tray">
+        <button class="chip chip-1"  data-value="1">$1</button>
+        <button class="chip chip-5"  data-value="5">$5</button>
+        <button class="chip chip-25" data-value="25">$25</button>
+        <button class="chip chip-50" data-value="50">$50</button>
+        <button class="chip chip-100" data-value="100">$100</button>
+        <button class="chip chip-500" data-value="500">$500</button>
+      </div>
+      <div class="bet-summary">
+        <span class="bet-label">Current Bet</span>
+        <span class="current-bet-display" id="current-bet-display">$0</span>
+        <input type="number" id="bet-input" value="0" min="0" max="1000" style="width:80px;">
+        <button class="btn-sm btn-clear" id="btn-clear-bet">Clear</button>
+        <button class="btn-deal" id="btn-deal" disabled>Deal</button>
+      </div>
+    </div>
+
+    <!-- Insurance prompt -->
+    <div class="insurance-prompt" id="insurance-prompt">
+      <p>Dealer shows Ace — take Insurance?</p>
+      <button class="btn-sm btn-primary" id="btn-insurance-yes">Yes</button>
+      <button class="btn-sm" id="btn-insurance-no">No</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button class="btn-hit" id="btn-hit" disabled>Hit</button>
+      <button class="btn-stand" id="btn-stand" disabled>Stand</button>
+      <button class="btn-double" id="btn-double" disabled>Double</button>
+      <button class="btn-split" id="btn-split" disabled>Split</button>
+      <button class="btn-surrender" id="btn-surrender" disabled>Surrender</button>
+    </div>
+  </div>
+
+  <!-- Agent Section -->
+  <div class="agent-section">
+    <h3>The Oracle's Counsel</h3>
+    <div class="agent-controls">
+      <button class="btn-agent" id="btn-ask-agent" disabled>Ask Agent</button>
+      <button class="btn-execute" id="btn-execute" disabled>Execute Recommendation</button>
+      <label style="font-size:0.8rem;color:var(--muted);">
+        Detail:
+        <select id="explain-mode">
+          <option value="terse">Terse</option>
+          <option value="standard" selected>Standard</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </label>
+    </div>
+    <div id="agent-panel">
+      <p class="muted">Press "Ask Agent" to get a recommendation.</p>
+    </div>
+  </div>
+
+  <!-- Analytics Toggle -->
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="btn-sm" id="btn-toggle-analytics" style="background:linear-gradient(180deg,#3d2213,#251409);color:var(--parchment,#c8a86a);border:1px solid #4a2c1a;">
+      ⚖ Ledger & Records
+    </button>
+  </div>
+  <div id="analytics-panel" style="display:none;background:var(--panel-bg);border-radius:8px;padding:16px;">
+    <!-- filled by JS -->
+  </div>
+
+</main>
+
+<!-- Side Column -->
+<aside class="side-col">
+
+  <!-- Settings -->
+  <div class="side-section">
+    <h3>Innkeeper's Panel</h3>
+    <div class="settings-row">
+      <div>
+        <span style="font-size:0.8rem;color:var(--muted);">API Key</span>
+        <input type="text" id="key-text-input-side" placeholder="sk-..." autocomplete="off" spellcheck="false" style="display:block;width:100%;margin-top:4px;">
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button id="btn-set-key-side" style="flex:1;background:linear-gradient(180deg,#9a6010,#6a3a08);color:#f0ddb8;border:1px solid #4a2806;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:600;font-family:'Cinzel',serif;letter-spacing:0.5px;">Set Key</button>
+          <label style="flex:1;cursor:pointer;background:#1e293b;border:1px solid var(--panel-border);border-radius:6px;padding:5px 8px;font-size:0.78rem;text-align:center;">
+            .env <input type="file" id="env-file-side" accept=".env,text/plain" style="display:none">
+          </label>
+        </div>
+        <span id="key-status-side" style="font-size:0.78rem;color:#94a3b8;margin-top:4px;display:block;">No key loaded</span>
+      </div>
+      <label>Risk Tolerance
+        <select id="risk-tolerance" style="display:block;margin-top:4px;width:100%;">
+          <option value="conservative" title="Prefers surrender and stand in marginal spots">Conservative</option>
+          <option value="standard" selected title="Plays textbook basic strategy">Standard</option>
+          <option value="aggressive" title="Prefers double and split on thin edges">Aggressive</option>
+        </select>
+        <span class="muted" id="risk-desc" style="margin-top:4px;display:block;">Plays textbook basic strategy.</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Strategy Chart -->
+  <div class="side-section">
+    <h3>Tome of Wisdom</h3>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#e74c3c"></div>H Hit</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#27ae60"></div>S Stand</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f39c12"></div>D Double</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3498db"></div>P Split</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#9b59b6"></div>R Surrender</div>
+    </div>
+    <div id="strategy-chart" style="overflow-x:auto;"></div>
+  </div>
+
+</aside>
+
+<!-- Game Over Modal -->
+<div id="gameover-modal"></div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<script type="module" src="js/main.js"></script>
+<script>
+  function mirrorToMain(file) {
+    const mainInput = document.getElementById('env-file');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    mainInput.files = dt.files;
+    mainInput.dispatchEvent(new Event('change'));
+  }
+
+  // Side file input mirrors main
+  document.getElementById('env-file-side').addEventListener('change', (e) => {
+    if (e.target.files[0]) mirrorToMain(e.target.files[0]);
+  });
+
+  // Side text key input mirrors banner
+  document.getElementById('btn-set-key-side').addEventListener('click', () => {
+    const val = document.getElementById('key-text-input-side').value.trim();
+    document.getElementById('key-text-input').value = val;
+    document.getElementById('btn-set-key').click();
+  });
+  document.getElementById('key-text-input-side').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-set-key-side').click();
+  });
+
+  // Risk tolerance tooltip
+  const riskDescs = {
+    conservative: 'Prefers surrender and stand in marginal spots.',
+    standard: 'Plays textbook basic strategy.',
+    aggressive: 'Prefers double and split on thin edges.',
+  };
+  document.getElementById('risk-tolerance').addEventListener('change', (e) => {
+    document.getElementById('risk-desc').textContent = riskDescs[e.target.value] ?? '';
+  });
+
+  // Sync key status to side panel
+  const obs = new MutationObserver(() => {
+    document.getElementById('key-status-side').textContent =
+      document.getElementById('key-status').textContent;
+    document.getElementById('key-status-side').className =
+      document.getElementById('key-status').className;
+  });
+  obs.observe(document.getElementById('key-status'), { childList: true, characterData: true, subtree: true });
+</script>
+</body>
+</html>
